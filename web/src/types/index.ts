@@ -1,0 +1,104 @@
+export interface User {
+  id: number;
+  name: string;
+  admin: number;
+  created_at: string;
+}
+
+export interface LoginRequest {
+  name: string;
+  pass: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  id: number;
+  name: string;
+  admin: boolean;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  pass: string;
+  admin?: boolean;
+}
+
+export interface Application {
+  id: number;
+  token: string;
+  name: string;
+  description: string;
+  image: string;
+  user_id: number;
+  created_at: string;
+}
+
+export interface CreateAppRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateAppRequest {
+  name?: string;
+  description?: string;
+}
+
+export interface Message {
+  id: number;
+  appid: number;
+  message: string;
+  title: string;
+  priority: number;
+  created_at: string;
+}
+
+export interface SendMessageRequest {
+  title?: string;
+  message: string;
+  priority?: number;
+}
+
+export interface MessageListResponse {
+  messages: Message[];
+  paging: {
+    next: number | null;
+    limit: number;
+    since: number;
+  };
+}
+
+export interface WsMessage {
+  type: 'connected' | 'message';
+  data: Record<string, unknown>;
+}
+
+export interface ApiError {
+  error: string;
+}
+
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  homepage: string;
+  license: string;
+  enabled: boolean;
+  priority: number;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdatePluginEnabledRequest {
+  enabled: boolean;
+}
+
+export interface UpdatePluginConfigRequest {
+  [key: string]: unknown;
+}
+
+export interface UpdatePluginPriorityRequest {
+  priority: number;
+}

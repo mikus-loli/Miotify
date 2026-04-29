@@ -1,0 +1,15 @@
+node_modules
+web/node_modules
+web/dist
+data
+.git
+.gitignore
+.env
+.env.*
+*.md
+!README.md
+.github
+examples
+*.log
+.DS_Store
+Thumbs.db
