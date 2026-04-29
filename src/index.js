@@ -15,6 +15,7 @@ const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/application');
 const messageRoutes = require('./routes/message');
 const pluginRoutes = require('./routes/plugins');
+const gotifyRoutes = require('./routes/gotify');
 
 async function start() {
   await db.loadDb();
@@ -48,6 +49,7 @@ async function start() {
   app.use('/api', applicationRoutes);
   app.use('/api', messageRoutes);
   app.use('/api', pluginRoutes);
+  app.use('/', gotifyRoutes);
 
   const webDistPath = path.join(__dirname, '..', 'web', 'dist');
   const uploadPath = path.join(path.dirname(config.dbPath), 'uploads');

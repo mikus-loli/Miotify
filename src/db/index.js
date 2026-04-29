@@ -76,6 +76,7 @@ async function loadDb() {
     db = new SQL.Database();
   }
   db.run(SQL_INIT);
+  migrate();
   await ensureAdmin();
   return db;
 }
@@ -100,6 +101,16 @@ async function ensureAdmin() {
   const hash = await bcrypt.hash(config.defaultAdminPass, 10);
   run('INSERT INTO users (name, pass, admin) VALUES (?, ?, 1)', [config.defaultAdminUser, hash]);
   save();
+}
+
+function migrate() {
+  const columns = queryAll("PRAGMA table_info(messages)");
+  const columnNames = columns.map(c => c.name);
+  if (!columnNames.includes('extras')) {
+    db.run('ALTER TABLE messages ADD COLUMN extras TEXT DEFAULT NULL');
+    save();
+    console.log('[DB] Migration: added extras column to messages');
+  }
 }
 
 function run(sql, params) {
