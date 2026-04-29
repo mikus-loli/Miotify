@@ -23,6 +23,7 @@ module.exports = {
     minPriority: 0,
     enabledApps: [],
     timeout: 5000,
+    forwardAllApps: true,
   },
 
   hooks: {
@@ -39,7 +40,7 @@ module.exports = {
         return;
       }
 
-      if (config.enabledApps && config.enabledApps.length > 0) {
+      if (!config.forwardAllApps && config.enabledApps && config.enabledApps.length > 0) {
         if (!config.enabledApps.includes(message.appid)) {
           log('info', `Skipping message from app ${message.appid} (not in enabledApps)`);
           return;

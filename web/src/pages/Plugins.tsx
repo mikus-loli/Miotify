@@ -19,6 +19,7 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
     minPriority: '最低优先级',
     enabledApps: '启用的应用ID',
     timeout: '超时时间(ms)',
+    forwardAllApps: '转发所有应用',
     smtp: 'SMTP 配置',
     host: '主机',
     port: '端口',
