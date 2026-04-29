@@ -1,6 +1,7 @@
 import type { Message } from '@/types';
 import { useAppStore } from '@/store/apps';
 import { useMessageStore } from '@/store/messages';
+import { formatTime } from '@/utils/format';
 
 interface Props {
   message: Message;
@@ -56,7 +57,7 @@ export default function MessageCard({ message, onDelete }: Props) {
             fontSize: 12,
             color: 'var(--color-text-muted)',
           }}>
-            {message.created_at}
+            {formatTime(message.created_at)}
           </div>
         </div>
         <button

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/users';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/api/client';
+import { formatTime } from '@/utils/format';
 
 export default function UsersPage() {
   const { users, loading, fetchUsers, createUser, deleteUser } = useUserStore();
@@ -184,7 +185,7 @@ export default function UsersPage() {
                   <span className="badge badge-success">普通用户</span>
                 )}
                 <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  创建于 {user.created_at}
+                  创建于 {formatTime(user.created_at)}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

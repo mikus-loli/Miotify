@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import type { Application } from '@/types';
+import { formatTime } from '@/utils/format';
 
 interface Props {
   app: Application;
@@ -201,7 +202,7 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
                 <button className="btn btn-danger btn-sm" onClick={() => onDelete(app.id)}>删除</button>
               </div>
               <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                创建时间: {app.created_at}
+                创建时间: {formatTime(app.created_at)}
               </div>
             </>
           )}
