@@ -41,24 +41,25 @@ async function start() {
   });
   app.use('/api', limiter);
 
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', websocket: wsManager.getConnectedCount() });
+  });
+
   app.use('/api', authRoutes);
   app.use('/api', applicationRoutes);
   app.use('/api', messageRoutes);
   app.use('/api', pluginRoutes);
 
-  app.use('/message', gotifyRoutes);
-  app.use('/application', gotifyRoutes);
-  app.use('/health', gotifyRoutes);
-  app.use('/version', gotifyRoutes);
+  app.use(gotifyRoutes);
 
   const webDistPath = path.join(__dirname, '..', 'web', 'dist');
   const uploadPath = path.join(path.dirname(config.dbPath), 'uploads');
-  
+
   if (fs.existsSync(uploadPath)) {
     app.use('/uploads', express.static(uploadPath));
     console.log('[Upload] Serving uploads from', uploadPath);
   }
-  
+
   if (fs.existsSync(webDistPath)) {
     app.use(express.static(webDistPath, { index: false }));
     app.get('/{*splat}', (req, res, next) => {
@@ -80,6 +81,7 @@ async function start() {
   server.listen(config.port, () => {
     console.log(`[Miotify] Server running on http://localhost:${config.port}`);
     console.log(`[Miotify] WebSocket endpoint: ws://localhost:${config.port}/ws?token=<jwt>`);
+    console.log(`[Miotify] Gotify-compatible API: POST /message`);
     console.log(`[Miotify] Default admin: ${config.defaultAdminUser} / ${config.defaultAdminPass}`);
   });
 }
