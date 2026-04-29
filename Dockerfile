@@ -17,8 +17,8 @@ WORKDIR /app
 
 RUN apk add --no-cache tini
 
-RUN addgroup -g 1000 -S miotify && \
-    adduser -u 1000 -S miotify -G miotify
+RUN addgroup -g 1001 -S miotify && \
+    adduser -u 1001 -S miotify -G miotify
 
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
