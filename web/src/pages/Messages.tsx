@@ -4,82 +4,58 @@ import { useAppStore } from '@/store/apps';
 import MessageCard from '@/components/MessageCard';
 
 export default function MessagesPage() {
-  const { messages, loading, fetchMessages, deleteMessage, filterAppId, setFilterAppId, subscribe } = useMessageStore();
+  const { messages, loading, fetchMessages, deleteMessage } = useMessageStore();
   const { apps, fetchApps } = useAppStore();
-  const [wsConnected, setWsConnected] = useState(false);
+  const [filterApp, setFilterApp] = useState<number | 'all'>('all');
 
   useEffect(() => {
-    fetchApps();
     fetchMessages();
-    const unsub = subscribe();
-    return unsub;
-  }, [fetchApps, fetchMessages, subscribe]);
+    fetchApps();
+  }, [fetchMessages, fetchApps]);
 
-  useEffect(() => {
-    const checkWs = setInterval(() => {
-      setWsConnected(typeof WebSocket !== 'undefined');
-    }, 3000);
-    return () => clearInterval(checkWs);
-  }, []);
-
-  const filteredMessages = filterAppId
-    ? messages.filter((m) => m.appid === filterAppId)
-    : messages;
-
-  const handleDelete = async (id: number) => {
-    await deleteMessage(id);
-  };
+  const filtered = filterApp === 'all'
+    ? messages
+    : messages.filter((m) => m.appid === filterApp);
 
   return (
     <div>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-        flexWrap: 'wrap',
-        gap: 12,
-      }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700 }}>消息</h1>
-          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4 }}>
-            {wsConnected ? '🟢 实时连接中' : '⚪ 离线'} · {filteredMessages.length} 条消息
+          <h1>消息</h1>
+          <p className="page-header-subtitle">
+            {messages.length} 条消息{filterApp !== 'all' ? ` · 筛选中` : ''}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select
             className="input"
+            value={filterApp}
+            onChange={(e) => setFilterApp(e.target.value === 'all' ? 'all' : Number(e.target.value))}
             style={{ width: 'auto', minWidth: 140 }}
-            value={filterAppId ?? ''}
-            onChange={(e) => setFilterAppId(e.target.value ? Number(e.target.value) : null)}
           >
-            <option value="">全部应用</option>
+            <option value="all">全部应用</option>
             {apps.map((app) => (
               <option key={app.id} value={app.id}>{app.name}</option>
             ))}
           </select>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => fetchMessages(filterAppId ?? undefined)}
-          >
-            刷新
-          </button>
         </div>
       </div>
 
-      {loading && messages.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 48 }}>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 64 }}>
           <span className="loading-spinner" style={{ width: 32, height: 32 }} />
         </div>
-      ) : filteredMessages.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <p style={{ fontSize: 48 }}>📭</p>
+          <p>📭</p>
           <p>暂无消息</p>
         </div>
       ) : (
-        <div>
-          {filteredMessages.map((msg) => (
-            <MessageCard key={msg.id} message={msg} onDelete={handleDelete} />
+        <div style={{ display: 'grid', gap: 10 }}>
+          {filtered.map((msg, i) => (
+            <div key={msg.id} className="animate-fade-in" style={{ animationDelay: `${Math.min(i * 0.03, 0.3)}s`, opacity: 0 }}>
+              <MessageCard message={msg} onDelete={deleteMessage} />
+            </div>
           ))}
         </div>
       )}

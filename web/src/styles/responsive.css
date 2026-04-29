@@ -1,28 +1,22 @@
 @media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-  }
-
-  .sidebar[style*="position: fixed"] {
-    transform: translateX(0);
-  }
-
-  button[aria-label="Toggle menu"] {
-    display: flex !important;
+  aside {
+    display: none !important;
   }
 
   main {
-    padding: 16px !important;
-    padding-top: 48px !important;
+    margin-left: 0 !important;
   }
-}
 
-@media (max-width: 480px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
   .card {
-    padding: 12px;
+    padding: 14px !important;
   }
 
-  h1 {
-    font-size: 20px !important;
+  .section-card {
+    padding: 16px !important;
   }
 }

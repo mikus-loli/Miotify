@@ -80,19 +80,10 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-        flexWrap: 'wrap',
-        gap: 12,
-      }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700 }}>用户管理</h1>
-          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4 }}>
-            {users.length} 个用户
-          </p>
+          <h1>用户管理</h1>
+          <p className="page-header-subtitle">{users.length} 个用户</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
           {showCreate ? '取消' : '+ 创建用户'}
@@ -100,28 +91,34 @@ export default function UsersPage() {
       </div>
 
       {showCreate && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>创建新用户</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input
-              className="input"
-              placeholder="用户名"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-            <input
-              className="input"
-              type="password"
-              placeholder="密码"
-              value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-            />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+        <div className="section-card animate-slide-down">
+          <h3 className="section-title">创建新用户</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                用户名
+              </label>
               <input
-                type="checkbox"
-                checked={newAdmin}
-                onChange={(e) => setNewAdmin(e.target.checked)}
+                className="input"
+                placeholder="请输入用户名"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
               />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                密码
+              </label>
+              <input
+                className="input"
+                type="password"
+                placeholder="请输入密码"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+              />
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+              <input type="checkbox" checked={newAdmin} onChange={(e) => setNewAdmin(e.target.checked)} />
               管理员
             </label>
             <div>
@@ -138,57 +135,73 @@ export default function UsersPage() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 48 }}>
+        <div style={{ textAlign: 'center', padding: 64 }}>
           <span className="loading-spinner" style={{ width: 32, height: 32 }} />
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
-          {users.map((user) => (
+          {users.map((user, i) => (
             <div
               key={user.id}
-              className="card"
+              className="card animate-fade-in"
               style={{
+                padding: 14,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: 8,
+                gap: 10,
+                animationDelay: `${Math.min(i * 0.04, 0.3)}s`,
+                opacity: 0,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {editingUserId === user.id && editMode === 'name' ? (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      className="input"
-                      placeholder="新用户名"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={{ width: 150 }}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleSaveName(user.id)}
-                      disabled={!editName.trim()}
-                    >
-                      保存
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>
-                      取消
-                    </button>
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  background: user.admin ? 'var(--color-primary-bg)' : 'var(--color-success-bg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 15,
+                  flexShrink: 0,
+                  color: user.admin ? 'var(--color-primary)' : 'var(--color-success)',
+                  fontWeight: 700,
+                }}>
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {editingUserId === user.id && editMode === 'name' ? (
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input
+                          className="input"
+                          placeholder="新用户名"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          style={{ width: 140 }}
+                        />
+                        <button className="btn btn-primary btn-sm" onClick={() => handleSaveName(user.id)} disabled={!editName.trim()}>
+                          保存
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>取消</button>
+                      </div>
+                    ) : (
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</span>
+                    )}
+                    {user.admin ? (
+                      <span className="badge badge-primary">管理员</span>
+                    ) : (
+                      <span className="badge badge-success">普通用户</span>
+                    )}
                   </div>
-                ) : (
-                  <span style={{ fontWeight: 500 }}>{user.name}</span>
-                )}
-                {user.admin ? (
-                  <span className="badge badge-primary">管理员</span>
-                ) : (
-                  <span className="badge badge-success">普通用户</span>
-                )}
-                <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  创建于 {formatTime(user.created_at)}
-                </span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2, display: 'block' }}>
+                    创建于 {formatTime(user.created_at)}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {(currentUser?.id === user.id || currentUser?.admin) && (
                   editingUserId === user.id && editMode === 'password' ? (
                     <>
@@ -198,42 +211,27 @@ export default function UsersPage() {
                         placeholder="新密码"
                         value={editPass}
                         onChange={(e) => setEditPass(e.target.value)}
-                        style={{ width: 150 }}
+                        style={{ width: 140 }}
                       />
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => handleSavePassword(user.id)}
-                        disabled={!editPass.trim()}
-                      >
+                      <button className="btn btn-primary btn-sm" onClick={() => handleSavePassword(user.id)} disabled={!editPass.trim()}>
                         保存
                       </button>
-                      <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>
-                        取消
-                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>取消</button>
                     </>
                   ) : editingUserId !== user.id && (
                     <>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => startEditName(user.id, user.name)}
-                      >
-                        修改用户名
+                      <button className="btn btn-ghost btn-sm" onClick={() => startEditName(user.id, user.name)}>
+                        ✏️ 改名
                       </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => startEditPassword(user.id)}
-                      >
-                        修改密码
+                      <button className="btn btn-ghost btn-sm" onClick={() => startEditPassword(user.id)}>
+                        🔑 改密
                       </button>
                     </>
                   )
                 )}
                 {currentUser?.id !== user.id && editingUserId !== user.id && (
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDelete(user.id)}
-                  >
-                    删除
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(user.id)}>
+                    🗑️ 删除
                   </button>
                 )}
               </div>
