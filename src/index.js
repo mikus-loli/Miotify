@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -49,7 +50,13 @@ async function start() {
   app.use('/api', pluginRoutes);
 
   const webDistPath = path.join(__dirname, '..', 'web', 'dist');
-  const fs = require('fs');
+  const uploadPath = path.join(path.dirname(config.dbPath), 'uploads');
+  
+  if (fs.existsSync(uploadPath)) {
+    app.use('/uploads', express.static(uploadPath));
+    console.log('[Upload] Serving uploads from', uploadPath);
+  }
+  
   if (fs.existsSync(webDistPath)) {
     app.use(express.static(webDistPath, { index: false }));
     app.get('/{*splat}', (req, res, next) => {

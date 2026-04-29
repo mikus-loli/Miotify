@@ -70,6 +70,25 @@ export const api = {
   deleteApp: (id: number, token: string) =>
     request<{ message: string }>('DELETE', `/application/${id}`, undefined, token),
 
+  uploadAppImage: async (id: number, file: File, token: string): Promise<Application> => {
+    const res = await fetch(`${BASE_URL}/application/${id}/image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return data as Application;
+  },
+
+  deleteAppImage: (id: number, token: string) =>
+    request<Application>('DELETE', `/application/${id}/image`, undefined, token),
+
   sendMessage: (body: SendMessageRequest, appToken: string) =>
     request<Message>('POST', '/message', body, appToken),
 

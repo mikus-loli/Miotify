@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useUserStore } from '@/store/users';
 import { useAuthStore } from '@/store/auth';
+import { api } from '@/api/client';
 
 export default function UsersPage() {
   const { users, loading, fetchUsers, createUser, deleteUser } = useUserStore();
   const currentUser = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPass, setNewPass] = useState('');
   const [newAdmin, setNewAdmin] = useState(false);
+  const [editingPasswordId, setEditingPasswordId] = useState<number | null>(null);
+  const [editPass, setEditPass] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -27,6 +31,17 @@ export default function UsersPage() {
 
   const handleDelete = async (id: number) => {
     await deleteUser(id);
+  };
+
+  const handleChangePassword = async (id: number) => {
+    if (!editPass.trim()) return;
+    try {
+      await api.updatePassword(id, editPass, token!);
+      setEditingPasswordId(null);
+      setEditPass('');
+    } catch (err) {
+      alert((err as Error).message);
+    }
   };
 
   return (
@@ -117,14 +132,53 @@ export default function UsersPage() {
                   创建于 {user.created_at}
                 </span>
               </div>
-              {currentUser?.id !== user.id && (
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => handleDelete(user.id)}
-                >
-                  删除
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {(currentUser?.id === user.id || currentUser?.admin) && (
+                  editingPasswordId === user.id ? (
+                    <>
+                      <input
+                        className="input"
+                        type="password"
+                        placeholder="新密码"
+                        value={editPass}
+                        onChange={(e) => setEditPass(e.target.value)}
+                        style={{ width: 150 }}
+                      />
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleChangePassword(user.id)}
+                        disabled={!editPass.trim()}
+                      >
+                        保存
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setEditingPasswordId(null);
+                          setEditPass('');
+                        }}
+                      >
+                        取消
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setEditingPasswordId(user.id)}
+                    >
+                      修改密码
+                    </button>
+                  )
+                )}
+                {currentUser?.id !== user.id && (
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(user.id)}
+                  >
+                    删除
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

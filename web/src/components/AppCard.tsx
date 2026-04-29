@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Application } from '@/types';
 
 interface Props {
   app: Application;
   onDelete: (id: number) => void;
   onUpdate: (id: number, data: { name?: string; description?: string }) => void;
+  onUploadImage: (id: number, file: File) => void;
+  onDeleteImage: (id: number) => void;
 }
 
-export default function AppCard({ app, onDelete, onUpdate }: Props) {
+export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDeleteImage }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(app.name);
   const [editDesc, setEditDesc] = useState(app.description);
   const [copied, setCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(app.token).then(() => {
@@ -26,17 +29,62 @@ export default function AppCard({ app, onDelete, onUpdate }: Props) {
     setEditing(false);
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('图片大小不能超过 2MB');
+        return;
+      }
+      onUploadImage(app.id, file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="card">
       <div
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
         onClick={() => setExpanded(!expanded)}
       >
-        <div>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>{app.name}</span>
-          <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
-            ID: {app.id}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {app.image ? (
+            <img
+              src={app.image}
+              alt={app.name}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 8,
+                objectFit: 'cover',
+                border: '1px solid var(--color-border)',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 8,
+                background: 'var(--color-bg)',
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 20,
+              }}
+            >
+              📱
+            </div>
+          )}
+          <div>
+            <span style={{ fontWeight: 600, fontSize: 15 }}>{app.name}</span>
+            <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
+              ID: {app.id}
+            </span>
+          </div>
         </div>
         <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
           {expanded ? '▲' : '▼'}
@@ -66,11 +114,69 @@ export default function AppCard({ app, onDelete, onUpdate }: Props) {
             </div>
           ) : (
             <>
-              {app.description && (
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 8 }}>
-                  {app.description}
-                </p>
-              )}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 12 }}>
+                <div style={{ position: 'relative' }}>
+                  {app.image ? (
+                    <img
+                      src={app.image}
+                      alt={app.name}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 12,
+                        objectFit: 'cover',
+                        border: '1px solid var(--color-border)',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 12,
+                        background: 'var(--color-bg)',
+                        border: '1px solid var(--color-border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 32,
+                      }}
+                    >
+                      📱
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  {app.description && (
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 8 }}>
+                      {app.description}
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleImageSelect}
+                    />
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {app.image ? '更换图标' : '上传图标'}
+                    </button>
+                    {app.image && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => onDeleteImage(app.id)}
+                      >
+                        删除图标
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div style={{
                 background: 'var(--color-bg)',
                 border: '1px solid var(--color-border)',

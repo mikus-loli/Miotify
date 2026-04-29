@@ -11,6 +11,8 @@ interface AppState {
   createApp: (data: CreateAppRequest) => Promise<Application | null>;
   updateApp: (id: number, data: UpdateAppRequest) => Promise<void>;
   deleteApp: (id: number) => Promise<void>;
+  uploadAppImage: (id: number, file: File) => Promise<void>;
+  deleteAppImage: (id: number) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -60,6 +62,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       await api.deleteApp(id, token);
       set({ apps: get().apps.filter((a) => a.id !== id) });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  uploadAppImage: async (id: number, file: File) => {
+    const token = useAuthStore.getState().token;
+    if (!token) return;
+    try {
+      const updated = await api.uploadAppImage(id, file, token);
+      set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
+    } catch (err) {
+      set({ error: (err as Error).message });
+    }
+  },
+
+  deleteAppImage: async (id: number) => {
+    const token = useAuthStore.getState().token;
+    if (!token) return;
+    try {
+      const updated = await api.deleteAppImage(id, token);
+      set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
     } catch (err) {
       set({ error: (err as Error).message });
     }

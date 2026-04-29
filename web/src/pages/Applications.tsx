@@ -3,7 +3,7 @@ import { useAppStore } from '@/store/apps';
 import AppCard from '@/components/AppCard';
 
 export default function ApplicationsPage() {
-  const { apps, loading, fetchApps, createApp, deleteApp, updateApp } = useAppStore();
+  const { apps, loading, fetchApps, createApp, deleteApp, updateApp, uploadAppImage, deleteAppImage } = useAppStore();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -88,7 +88,14 @@ export default function ApplicationsPage() {
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
           {apps.map((app) => (
-            <AppCard key={app.id} app={app} onDelete={handleDelete} onUpdate={handleUpdate} />
+            <AppCard
+              key={app.id}
+              app={app}
+              onDelete={handleDelete}
+              onUpdate={handleUpdate}
+              onUploadImage={uploadAppImage}
+              onDeleteImage={deleteAppImage}
+            />
           ))}
         </div>
       )}
