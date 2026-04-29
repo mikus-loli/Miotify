@@ -25,6 +25,8 @@ async function start() {
 
   const app = express();
 
+  app.set('trust proxy', 1);
+
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
@@ -35,6 +37,7 @@ async function start() {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' },
+    trustProxy: true,
   });
   app.use('/api', limiter);
 
