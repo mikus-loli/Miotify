@@ -1,43 +1,44 @@
-FROM node:20-alpine AS builder
+ARG NODE_VERSION=20-alpine
+
+FROM node:${NODE_VERSION} AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --ignore-scripts
 
 COPY web/package*.json ./web/
-RUN cd web && npm ci
+RUN cd web && npm ci --ignore-scripts
 
 COPY . .
 RUN cd web && npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:${NODE_VERSION} AS runtime
+
+RUN apk add --no-cache tini && \
+    addgroup -g 1000 -S miotify && \
+    adduser -u 1000 -S miotify -G miotify
 
 WORKDIR /app
 
-RUN apk add --no-cache tini
+COPY --from=builder --chown=miotify:miotify /app/node_modules ./node_modules
+COPY --from=builder --chown=miotify:miotify /app/src ./src
+COPY --from=builder --chown=miotify:miotify /app/plugins ./plugins
+COPY --from=builder --chown=miotify:miotify /app/web/dist ./web/dist
+COPY --from=builder --chown=miotify:miotify /app/package.json ./
 
-RUN addgroup -g 1001 -S miotify && \
-    adduser -u 1001 -S miotify -G miotify
-
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-
-COPY src ./src
-COPY plugins ./plugins
-COPY --from=builder /app/web/dist ./web/dist
-
-RUN mkdir -p /app/data && chown -R miotify:miotify /app
+RUN mkdir -p /app/data && chown -R miotify:miotify /app/data
 
 USER miotify
 
 ENV NODE_ENV=production
 ENV PORT=8080
+ENV DB_PATH=/app/data/miotify.db
 
 EXPOSE 8080
 
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "src/index.js"]
-
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "src/index.js"]

@@ -11,23 +11,19 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8080
-      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-secure-random-string}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret}
+      - JWT_EXPIRES_IN=7d
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
       - DEFAULT_ADMIN_PASS=${DEFAULT_ADMIN_PASS:-admin}
     volumes:
       - miotify-data:/app/data
+      - ./plugins/available:/app/plugins/available:ro
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      start_period: 5s
 
 volumes:
   miotify-data:
