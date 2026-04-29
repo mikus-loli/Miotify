@@ -3,12 +3,69 @@ import { usePluginStore } from '@/store/plugins';
 import type { Plugin } from '@/types';
 
 function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
+  const selectOptions: Record<string, { label: string; value: string }[]> = {
+    targetType: [
+      { label: '私聊', value: 'private' },
+      { label: '群聊', value: 'group' },
+    ],
+  };
+
+  const fieldLabels: Record<string, string> = {
+    httpUrl: 'HTTP 地址',
+    accessToken: 'Access Token',
+    targetType: '目标类型',
+    targetId: '目标 ID (QQ号/群号)',
+    messageTemplate: '消息模板',
+    minPriority: '最低优先级',
+    enabledApps: '启用的应用ID',
+    timeout: '超时时间(ms)',
+    smtp: 'SMTP 配置',
+    host: '主机',
+    port: '端口',
+    secure: 'SSL/TLS',
+    auth: '认证',
+    user: '用户名',
+    pass: '密码',
+    from: '发件人',
+    to: '收件人',
+    subject: '主题模板',
+  };
+
   const renderField = (key: string, value: unknown, path: string[] = []): React.ReactNode => {
     const fullPath = [...path, key];
     const fieldKey = fullPath.join('.');
+    const label = fieldLabels[key] || key;
 
     if (value === null || value === undefined) {
       return null;
+    }
+
+    if (selectOptions[key]) {
+      return (
+        <div key={fieldKey} style={{ marginBottom: 8 }}>
+          <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+            {label}
+          </label>
+          <select
+            className="input"
+            value={String(value)}
+            onChange={(e) => {
+              const newConfig = { ...config };
+              let current: Record<string, unknown> = newConfig;
+              for (let i = 0; i < path.length; i++) {
+                current = current[path[i]] as Record<string, unknown>;
+              }
+              current[key] = e.target.value;
+              onChange(newConfig);
+            }}
+            style={{ width: 'auto', minWidth: 150 }}
+          >
+            {selectOptions[key].map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      );
     }
 
     if (typeof value === 'boolean') {
@@ -27,7 +84,7 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
               onChange(newConfig);
             }}
           />
-          <span style={{ fontSize: 13 }}>{key}</span>
+          <span style={{ fontSize: 13 }}>{label}</span>
         </label>
       );
     }
@@ -36,7 +93,7 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
       return (
         <div key={fieldKey} style={{ marginBottom: 8 }}>
           <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-            {key}
+            {label}
           </label>
           <input
             className="input"
@@ -58,27 +115,45 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
     }
 
     if (typeof value === 'string') {
-      const isLongText = value.length > 50 || key.toLowerCase().includes('password') || key.toLowerCase().includes('pass');
+      const isLongText = value.length > 50 || key.toLowerCase().includes('password') || key.toLowerCase().includes('pass') || key.toLowerCase().includes('template');
       return (
         <div key={fieldKey} style={{ marginBottom: 8 }}>
           <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-            {key}
+            {label}
           </label>
           {isLongText ? (
-            <input
-              className="input"
-              type={key.toLowerCase().includes('password') || key.toLowerCase().includes('pass') ? 'password' : 'text'}
-              value={value}
-              onChange={(e) => {
-                const newConfig = { ...config };
-                let current: Record<string, unknown> = newConfig;
-                for (let i = 0; i < path.length; i++) {
-                  current = current[path[i]] as Record<string, unknown>;
-                }
-                current[key] = e.target.value;
-                onChange(newConfig);
-              }}
-            />
+            key.toLowerCase().includes('template') ? (
+              <textarea
+                className="input"
+                value={value}
+                onChange={(e) => {
+                  const newConfig = { ...config };
+                  let current: Record<string, unknown> = newConfig;
+                  for (let i = 0; i < path.length; i++) {
+                    current = current[path[i]] as Record<string, unknown>;
+                  }
+                  current[key] = e.target.value;
+                  onChange(newConfig);
+                }}
+                rows={3}
+                style={{ width: '100%', resize: 'vertical' }}
+              />
+            ) : (
+              <input
+                className="input"
+                type={key.toLowerCase().includes('password') || key.toLowerCase().includes('pass') ? 'password' : 'text'}
+                value={value}
+                onChange={(e) => {
+                  const newConfig = { ...config };
+                  let current: Record<string, unknown> = newConfig;
+                  for (let i = 0; i < path.length; i++) {
+                    current = current[path[i]] as Record<string, unknown>;
+                  }
+                  current[key] = e.target.value;
+                  onChange(newConfig);
+                }}
+              />
+            )
           ) : (
             <input
               className="input"
@@ -91,6 +166,7 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
                   current = current[path[i]] as Record<string, unknown>;
                 }
                 current[key] = e.target.value;
+                onChange(newConfig);
               }}
             />
           )}
@@ -103,7 +179,7 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
         return (
           <div key={fieldKey} style={{ marginBottom: 8 }}>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
-              {key} {value.length > 0 && typeof value[0] === 'number' ? '(逗号分隔的数字)' : '(逗号分隔)'}
+              {label} {value.length > 0 && typeof value[0] === 'number' ? '(逗号分隔的数字)' : '(逗号分隔)'}
             </label>
             <input
               className="input"
@@ -133,7 +209,7 @@ function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; o
       return (
         <div key={fieldKey} style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: 'var(--color-text)' }}>
-            {key}
+            {label}
           </div>
           <div style={{ paddingLeft: 12, borderLeft: '2px solid var(--color-border)' }}>
             {Object.entries(value as Record<string, unknown>).map(([k, v]) => renderField(k, v, fullPath))}
