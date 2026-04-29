@@ -15,7 +15,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini su-exec
 
 COPY package*.json ./
 RUN npm ci --only=production
@@ -26,7 +26,8 @@ COPY --from=builder /app/web/dist ./web/dist
 
 RUN mkdir -p /app/data && chown -R node:node /app
 
-USER node
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8080
 
@@ -34,5 +35,5 @@ ENV NODE_ENV=production
 ENV PORT=8080
 ENV DB_PATH=/app/data/miotify.db
 
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "src/index.js"]
