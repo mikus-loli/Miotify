@@ -14,7 +14,6 @@ const { errorHandler, notFoundHandler } = require('./middleware/error');
 const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/application');
 const messageRoutes = require('./routes/message');
-const userRoutes = require('./routes/user');
 const pluginRoutes = require('./routes/plugins');
 
 async function start() {
@@ -46,7 +45,6 @@ async function start() {
   app.use('/api', authRoutes);
   app.use('/api', applicationRoutes);
   app.use('/api', messageRoutes);
-  app.use('/api', userRoutes);
   app.use('/api', pluginRoutes);
 
   const webDistPath = path.join(__dirname, '..', 'web', 'dist');

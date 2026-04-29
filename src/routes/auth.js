@@ -59,6 +59,70 @@ router.get('/user', authMiddleware, adminMiddleware, (req, res, next) => {
   }
 });
 
+router.get('/user/:id', authMiddleware, (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (id !== req.user.id && !req.user.admin) {
+      throw new AppError('forbidden', 403);
+    }
+    const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE id = ?', [id]);
+    if (!user) {
+      throw new AppError('user not found', 404);
+    }
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/user/:id', authMiddleware, (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (id !== req.user.id && !req.user.admin) {
+      throw new AppError('forbidden', 403);
+    }
+    const existing = db.queryOne('SELECT id FROM users WHERE id = ?', [id]);
+    if (!existing) {
+      throw new AppError('user not found', 404);
+    }
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      throw new AppError('name is required', 400);
+    }
+    const duplicate = db.queryOne('SELECT id FROM users WHERE name = ? AND id != ?', [name.trim(), id]);
+    if (duplicate) {
+      throw new AppError('username already exists', 409);
+    }
+    db.run('UPDATE users SET name = ? WHERE id = ?', [name.trim(), id]);
+    const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE id = ?', [id]);
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/user/:id/password', authMiddleware, (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (id !== req.user.id && !req.user.admin) {
+      throw new AppError('forbidden', 403);
+    }
+    const existing = db.queryOne('SELECT id FROM users WHERE id = ?', [id]);
+    if (!existing) {
+      throw new AppError('user not found', 404);
+    }
+    const { pass } = req.body;
+    if (!pass) {
+      throw new AppError('pass is required', 400);
+    }
+    const hash = bcrypt.hashSync(pass, 10);
+    db.run('UPDATE users SET pass = ? WHERE id = ?', [hash, id]);
+    res.json({ message: 'password updated' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete('/user/:id', authMiddleware, adminMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -71,27 +135,6 @@ router.delete('/user/:id', authMiddleware, adminMiddleware, (req, res, next) => 
     }
     db.run('DELETE FROM users WHERE id = ?', [id]);
     res.json({ message: 'user deleted' });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.put('/user/:id/password', authMiddleware, (req, res, next) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (id !== req.user.id && !req.user.admin) {
-      throw new AppError('forbidden', 403);
-    }
-    const { pass } = req.body;
-    if (!pass) {
-      throw new AppError('pass is required', 400);
-    }
-    const hash = bcrypt.hashSync(pass, 10);
-    const changed = db.run('UPDATE users SET pass = ? WHERE id = ?', [hash, id]);
-    if (changed === 0) {
-      throw new AppError('user not found', 404);
-    }
-    res.json({ message: 'password updated' });
   } catch (err) {
     next(err);
   }

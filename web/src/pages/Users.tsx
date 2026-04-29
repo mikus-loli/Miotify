@@ -11,8 +11,10 @@ export default function UsersPage() {
   const [newName, setNewName] = useState('');
   const [newPass, setNewPass] = useState('');
   const [newAdmin, setNewAdmin] = useState(false);
-  const [editingPasswordId, setEditingPasswordId] = useState<number | null>(null);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
   const [editPass, setEditPass] = useState('');
+  const [editMode, setEditMode] = useState<'name' | 'password' | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -33,12 +35,43 @@ export default function UsersPage() {
     await deleteUser(id);
   };
 
-  const handleChangePassword = async (id: number) => {
+  const startEditName = (userId: number, currentName: string) => {
+    setEditingUserId(userId);
+    setEditName(currentName);
+    setEditPass('');
+    setEditMode('name');
+  };
+
+  const startEditPassword = (userId: number) => {
+    setEditingUserId(userId);
+    setEditName('');
+    setEditPass('');
+    setEditMode('password');
+  };
+
+  const cancelEdit = () => {
+    setEditingUserId(null);
+    setEditName('');
+    setEditPass('');
+    setEditMode(null);
+  };
+
+  const handleSaveName = async (id: number) => {
+    if (!editName.trim()) return;
+    try {
+      await api.updateUser(id, editName.trim(), token!);
+      await fetchUsers();
+      cancelEdit();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  };
+
+  const handleSavePassword = async (id: number) => {
     if (!editPass.trim()) return;
     try {
       await api.updatePassword(id, editPass, token!);
-      setEditingPasswordId(null);
-      setEditPass('');
+      cancelEdit();
     } catch (err) {
       alert((err as Error).message);
     }
@@ -122,7 +155,29 @@ export default function UsersPage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontWeight: 500 }}>{user.name}</span>
+                {editingUserId === user.id && editMode === 'name' ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      className="input"
+                      placeholder="新用户名"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      style={{ width: 150 }}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleSaveName(user.id)}
+                      disabled={!editName.trim()}
+                    >
+                      保存
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontWeight: 500 }}>{user.name}</span>
+                )}
                 {user.admin ? (
                   <span className="badge badge-primary">管理员</span>
                 ) : (
@@ -134,7 +189,7 @@ export default function UsersPage() {
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {(currentUser?.id === user.id || currentUser?.admin) && (
-                  editingPasswordId === user.id ? (
+                  editingUserId === user.id && editMode === 'password' ? (
                     <>
                       <input
                         className="input"
@@ -146,31 +201,33 @@ export default function UsersPage() {
                       />
                       <button
                         className="btn btn-primary btn-sm"
-                        onClick={() => handleChangePassword(user.id)}
+                        onClick={() => handleSavePassword(user.id)}
                         disabled={!editPass.trim()}
                       >
                         保存
                       </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => {
-                          setEditingPasswordId(null);
-                          setEditPass('');
-                        }}
-                      >
+                      <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>
                         取消
                       </button>
                     </>
-                  ) : (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setEditingPasswordId(user.id)}
-                    >
-                      修改密码
-                    </button>
+                  ) : editingUserId !== user.id && (
+                    <>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => startEditName(user.id, user.name)}
+                      >
+                        修改用户名
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => startEditPassword(user.id)}
+                      >
+                        修改密码
+                      </button>
+                    </>
                   )
                 )}
-                {currentUser?.id !== user.id && (
+                {currentUser?.id !== user.id && editingUserId !== user.id && (
                   <button
                     className="btn btn-danger btn-sm"
                     onClick={() => handleDelete(user.id)}

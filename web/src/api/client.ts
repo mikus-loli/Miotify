@@ -55,6 +55,9 @@ export const api = {
   updatePassword: (id: number, pass: string, token: string) =>
     request<{ message: string }>('PUT', `/user/${id}/password`, { pass }, token),
 
+  updateUser: (id: number, name: string, token: string) =>
+    request<User>('PUT', `/user/${id}`, { name }, token),
+
   createApp: (body: CreateAppRequest, token: string) =>
     request<Application>('POST', '/application', body, token),
 
