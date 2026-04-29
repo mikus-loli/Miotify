@@ -29,7 +29,7 @@ async function loadPlugins() {
   ensurePluginsDir();
 
   const registeredPlugins = db.queryAll('SELECT * FROM plugins ORDER BY priority ASC');
-  const registeredIds = new Set(registeredPlugins.map(p => p.id));
+  const registeredMap = new Map(registeredPlugins.map(p => [p.id, p]));
 
   const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
 
@@ -45,8 +45,28 @@ async function loadPlugins() {
       }
 
       const pluginId = pluginDef.meta.id;
+      const defaultConfig = pluginDef.defaultConfig || {};
 
-      if (!registeredIds.has(pluginId)) {
+      if (registeredMap.has(pluginId)) {
+        const existing = registeredMap.get(pluginId);
+        const existingConfig = JSON.parse(existing.config || '{}');
+        const mergedConfig = { ...defaultConfig, ...existingConfig };
+        
+        db.run(
+          `UPDATE plugins SET name = ?, version = ?, description = ?, author = ?, homepage = ?, license = ?, config = ?, updated_at = datetime('now') WHERE id = ?`,
+          [
+            pluginDef.meta.name || pluginId,
+            pluginDef.meta.version || '1.0.0',
+            pluginDef.meta.description || '',
+            pluginDef.meta.author || '',
+            pluginDef.meta.homepage || '',
+            pluginDef.meta.license || '',
+            JSON.stringify(mergedConfig),
+            pluginId,
+          ]
+        );
+        console.log(`[Plugin] Updated: ${pluginId}`);
+      } else {
         db.run(
           `INSERT INTO plugins (id, name, version, description, author, homepage, license, config)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -58,7 +78,7 @@ async function loadPlugins() {
             pluginDef.meta.author || '',
             pluginDef.meta.homepage || '',
             pluginDef.meta.license || '',
-            JSON.stringify(pluginDef.defaultConfig || {}),
+            JSON.stringify(defaultConfig),
           ]
         );
         console.log(`[Plugin] Registered: ${pluginId}`);

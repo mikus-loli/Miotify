@@ -37,7 +37,6 @@ async function start() {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' },
-    trustProxy: true,
   });
   app.use('/api', limiter);
 
