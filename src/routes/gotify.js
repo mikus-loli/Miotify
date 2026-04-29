@@ -9,6 +9,11 @@ const router = express.Router();
 
 const GOTIFY_VERSION = '2.9.1';
 
+router.use((req, res, next) => {
+  console.log(`[Gotify] ${req.method} ${req.path}`);
+  next();
+});
+
 function gotifyTokenMiddleware(req, res, next) {
   let token = null;
 
