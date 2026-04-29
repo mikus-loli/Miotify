@@ -92,13 +92,14 @@ function save() {
 }
 
 async function ensureAdmin() {
-  const rows = queryAll('SELECT id FROM users WHERE name = ?', [config.defaultAdminUser]);
-  if (rows.length === 0) {
-    const bcrypt = require('bcryptjs');
-    const hash = await bcrypt.hash(config.defaultAdminPass, 10);
-    run('INSERT INTO users (name, pass, admin) VALUES (?, ?, 1)', [config.defaultAdminUser, hash]);
-    save();
+  const adminRows = queryAll('SELECT id FROM users WHERE admin = 1');
+  if (adminRows.length > 0) {
+    return;
   }
+  const bcrypt = require('bcryptjs');
+  const hash = await bcrypt.hash(config.defaultAdminPass, 10);
+  run('INSERT INTO users (name, pass, admin) VALUES (?, ?, 1)', [config.defaultAdminUser, hash]);
+  save();
 }
 
 function run(sql, params) {
