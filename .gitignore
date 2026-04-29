@@ -1,24 +1,4 @@
 node_modules/
 data/
 .env
-.env.*
 web/dist/
-
-# Logs
-*.log
-npm-debug.log*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-
-# Docker
-.docker/
-
-# Test
-coverage/
-.nyc_output/
