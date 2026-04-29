@@ -41,15 +41,15 @@ async function start() {
   });
   app.use('/api', limiter);
 
-  app.get('/health', (req, res) => {
-    res.json({ status: 'ok', websocket: wsManager.getConnectedCount() });
-  });
-
   app.use('/api', authRoutes);
   app.use('/api', applicationRoutes);
   app.use('/api', messageRoutes);
   app.use('/api', pluginRoutes);
-  app.use('/', gotifyRoutes);
+
+  app.use('/message', gotifyRoutes);
+  app.use('/application', gotifyRoutes);
+  app.use('/health', gotifyRoutes);
+  app.use('/version', gotifyRoutes);
 
   const webDistPath = path.join(__dirname, '..', 'web', 'dist');
   const uploadPath = path.join(path.dirname(config.dbPath), 'uploads');
