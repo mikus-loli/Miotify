@@ -15,7 +15,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache tini su-exec
+RUN apk add --no-cache tini su-exec tzdata
+
+ENV TZ=Asia/Shanghai
 
 COPY package*.json ./
 RUN npm ci --only=production
