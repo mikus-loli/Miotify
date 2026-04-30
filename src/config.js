@@ -1,8 +1,13 @@
 require('dotenv').config();
+const crypto = require('crypto');
+
+function generateSecret() {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 8080,
-  jwtSecret: process.env.JWT_SECRET || 'miotify-default-secret-change-me',
+  jwtSecret: process.env.JWT_SECRET || generateSecret(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   dbPath: process.env.DB_PATH || './data/miotify.db',
   defaultAdminUser: process.env.DEFAULT_ADMIN_USER || 'admin',
