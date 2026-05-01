@@ -58,6 +58,7 @@ export default function MessageCard({ message, onDelete }: Props) {
               lineHeight: 1.6,
               margin: 0,
               wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap',
               display: !expanded && isLong ? '-webkit-box' : 'block',
               WebkitLineClamp: !expanded && isLong ? 2 : undefined,
               WebkitBoxOrient: !expanded && isLong ? 'vertical' : undefined,
