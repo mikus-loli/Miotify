@@ -25,13 +25,12 @@ router.get('/stats', authMiddleware, (req, res) => {
       totalUsers = db.queryOne('SELECT COUNT(*) as cnt FROM users').cnt;
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
     let todayMessages = 0;
     if (appIds.length > 0) {
       const placeholders = appIds.map(() => '?').join(',');
       todayMessages = db.queryOne(
-        `SELECT COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND created_at >= ?`,
-        [...appIds, todayStr]
+        `SELECT COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND date(created_at) = date('now')`,
+        appIds
       ).cnt;
     }
 
@@ -54,25 +53,24 @@ router.get('/stats', authMiddleware, (req, res) => {
     }
 
     const messagesByDay = [];
+    const dayResults = new Map();
+    if (appIds.length > 0) {
+      const placeholders = appIds.map(() => '?').join(',');
+      const rows = db.queryAll(
+        `SELECT date(created_at) as day, COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND date(created_at) >= date('now', '-6 days') GROUP BY date(created_at) ORDER BY day`,
+        appIds
+      );
+      for (const row of rows) {
+        dayResults.set(row.day, row.cnt);
+      }
+    }
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dayStart = d.toISOString().slice(0, 10) + 'T00:00:00.000Z';
-      const nextDay = new Date(d);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const dayEnd = nextDay.toISOString().slice(0, 10) + 'T00:00:00.000Z';
-
-      let count = 0;
-      if (appIds.length > 0) {
-        const placeholders = appIds.map(() => '?').join(',');
-        count = db.queryOne(
-          `SELECT COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND created_at >= ? AND created_at < ?`,
-          [...appIds, dayStart, dayEnd]
-        ).cnt;
-      }
+      const dateStr = d.toISOString().slice(0, 10);
       messagesByDay.push({
-        date: d.toISOString().slice(0, 10),
-        count,
+        date: dateStr,
+        count: dayResults.get(dateStr) || 0,
       });
     }
 
@@ -93,16 +91,23 @@ router.get('/stats', authMiddleware, (req, res) => {
     }
 
     const messagesByHour = [];
-    for (let h = 0; h < 24; h++) {
-      let count = 0;
-      if (appIds.length > 0) {
-        const placeholders = appIds.map(() => '?').join(',');
-        count = db.queryOne(
-          `SELECT COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND CAST(strftime('%H', created_at) AS INTEGER) = ?`,
-          [...appIds, h]
-        ).cnt;
+    if (appIds.length > 0) {
+      const placeholders = appIds.map(() => '?').join(',');
+      const rows = db.queryAll(
+        `SELECT CAST(strftime('%H', created_at) AS INTEGER) as hour, COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) GROUP BY hour ORDER BY hour`,
+        appIds
+      );
+      const hourMap = new Map();
+      for (const row of rows) {
+        hourMap.set(row.hour, row.cnt);
       }
-      messagesByHour.push({ hour: h, count });
+      for (let h = 0; h < 24; h++) {
+        messagesByHour.push({ hour: h, count: hourMap.get(h) || 0 });
+      }
+    } else {
+      for (let h = 0; h < 24; h++) {
+        messagesByHour.push({ hour: h, count: 0 });
+      }
     }
 
     res.json({
