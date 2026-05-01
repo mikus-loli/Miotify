@@ -58,10 +58,44 @@ const SQL_INIT = `
     FOREIGN KEY (plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_appid ON messages(appid);
   CREATE INDEX IF NOT EXISTS idx_applications_token ON applications(token);
   CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);
 `;
+
+const crypto = require('crypto');
+
+function generateJwtSecret() {
+  return crypto.randomBytes(64).toString('hex');
+}
+
+function getSetting(key) {
+  const row = queryOne('SELECT value FROM settings WHERE key = ?', [key]);
+  return row ? row.value : null;
+}
+
+function setSetting(key, value) {
+  run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, value]);
+}
+
+function getOrGenerateJwtSecret() {
+  if (process.env.JWT_SECRET) {
+    return { secret: process.env.JWT_SECRET, generated: false };
+  }
+  let secret = getSetting('jwt_secret');
+  if (secret) {
+    return { secret, generated: false };
+  }
+  secret = generateJwtSecret();
+  setSetting('jwt_secret', secret);
+  return { secret, generated: true };
+}
 
 async function loadDb() {
   const SQL = await init();
@@ -139,4 +173,4 @@ function getDb() {
   return db;
 }
 
-module.exports = { loadDb, run, queryAll, queryOne, getDb, save };
+module.exports = { loadDb, run, queryAll, queryOne, getDb, save, getOrGenerateJwtSecret, getSetting, setSetting };

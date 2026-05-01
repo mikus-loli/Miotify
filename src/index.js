@@ -21,6 +21,18 @@ async function start() {
   await db.loadDb();
   console.log('[DB] Database initialized');
 
+  const { secret, generated } = db.getOrGenerateJwtSecret();
+  config.setJwtSecret(secret);
+  if (generated) {
+    console.log('');
+    console.log('========================================');
+    console.log('[IMPORTANT] JWT Secret Generated:');
+    console.log(secret);
+    console.log('Please save this secret securely!');
+    console.log('========================================');
+    console.log('');
+  }
+
   await pluginManager.loadPlugins();
   console.log('[Plugin] Plugins loaded');
 
@@ -89,16 +101,6 @@ async function start() {
     console.log(`[Miotify] WebSocket endpoint: ws://localhost:${config.port}/ws?token=<jwt>`);
     console.log(`[Miotify] Gotify-compatible API: POST /message`);
     console.log(`[Miotify] Default admin: ${config.defaultAdminUser} / ${config.defaultAdminPass}`);
-    
-    if (config.jwtSecretGenerated) {
-      console.log('');
-      console.log('========================================');
-      console.log('[Miotify] JWT_SECRET has been auto-generated:');
-      console.log(`[Miotify] ${config.jwtSecret}`);
-      console.log('[Miotify] This key has been saved to .env file');
-      console.log('========================================');
-      console.log('');
-    }
   });
 }
 
