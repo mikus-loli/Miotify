@@ -62,9 +62,10 @@ docker run -d \
   --name miotify \
   -p 8080:8080 \
   -v miotify-data:/app/data \
-  -e JWT_SECRET=your-secret-key \
   ghcr.io/your-repo/miotify:latest
 ```
+
+> 首次启动时，JWT 密钥会自动生成并显示在日志中。查看日志：`docker logs miotify`
 
 ### 默认账号
 
@@ -86,7 +87,7 @@ docker run -d \
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `PORT` | 服务端口 | `8080` |
-| `JWT_SECRET` | JWT 密钥 | 随机生成（64字符十六进制） |
+| `JWT_SECRET` | JWT 密钥（首次运行自动生成并保存到 `.env`） | 自动生成 |
 | `JWT_EXPIRES_IN` | Token 有效期 | `7d` |
 | `DB_PATH` | 数据库路径 | `./data/miotify.db` |
 | `DEFAULT_ADMIN_USER` | 默认管理员用户名 | `admin` |
@@ -94,6 +95,8 @@ docker run -d \
 | `TZ` | 时区 | `Asia/Shanghai` |
 | `MAX_MESSAGE_LENGTH` | 消息最大长度 | `5000` |
 | `MAX_MESSAGES_PER_APP` | 每应用最大消息数 | `200` |
+
+> **首次启动说明**：如果未设置 `JWT_SECRET`，系统会自动生成一个随机密钥并保存到 `.env` 文件，同时在控制台打印该密钥。请妥善保管此密钥。
 
 ### 开发模式
 
@@ -400,7 +403,6 @@ services:
       - "8080:8080"
     environment:
       - TZ=Asia/Shanghai
-      - JWT_SECRET=your-secure-secret
       - DEFAULT_ADMIN_USER=admin
       - DEFAULT_ADMIN_PASS=admin
     volumes:
@@ -409,6 +411,8 @@ services:
 volumes:
   miotify-data:
 ```
+
+> **注意**：首次启动时，如果未设置 `JWT_SECRET` 环境变量，系统会自动生成并保存在数据卷中。后续重启将使用已保存的密钥。如需自定义密钥，可添加 `- JWT_SECRET=your-secret` 到环境变量。
 
 ### 常用命令
 

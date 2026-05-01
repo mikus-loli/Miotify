@@ -1,13 +1,40 @@
 require('dotenv').config();
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-function generateSecret() {
-  return crypto.randomBytes(32).toString('hex');
+function generateAndSaveSecret() {
+  const secret = crypto.randomBytes(32).toString('hex');
+  const envPath = path.resolve(process.cwd(), '.env');
+  
+  let envContent = '';
+  if (fs.existsSync(envPath)) {
+    envContent = fs.readFileSync(envPath, 'utf8');
+    if (envContent.includes('JWT_SECRET=')) {
+      envContent = envContent.replace(/JWT_SECRET=.*/, `JWT_SECRET=${secret}`);
+    } else {
+      envContent += `\nJWT_SECRET=${secret}`;
+    }
+  } else {
+    envContent = `JWT_SECRET=${secret}\n`;
+  }
+  
+  fs.writeFileSync(envPath, envContent.trim() + '\n');
+  return secret;
+}
+
+let jwtSecret = process.env.JWT_SECRET;
+let jwtSecretGenerated = false;
+
+if (!jwtSecret) {
+  jwtSecret = generateAndSaveSecret();
+  jwtSecretGenerated = true;
 }
 
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 8080,
-  jwtSecret: process.env.JWT_SECRET || generateSecret(),
+  jwtSecret,
+  jwtSecretGenerated,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   dbPath: process.env.DB_PATH || './data/miotify.db',
   defaultAdminUser: process.env.DEFAULT_ADMIN_USER || 'admin',

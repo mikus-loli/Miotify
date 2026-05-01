@@ -89,6 +89,16 @@ async function start() {
     console.log(`[Miotify] WebSocket endpoint: ws://localhost:${config.port}/ws?token=<jwt>`);
     console.log(`[Miotify] Gotify-compatible API: POST /message`);
     console.log(`[Miotify] Default admin: ${config.defaultAdminUser} / ${config.defaultAdminPass}`);
+    
+    if (config.jwtSecretGenerated) {
+      console.log('');
+      console.log('========================================');
+      console.log('[Miotify] JWT_SECRET has been auto-generated:');
+      console.log(`[Miotify] ${config.jwtSecret}`);
+      console.log('[Miotify] This key has been saved to .env file');
+      console.log('========================================');
+      console.log('');
+    }
   });
 }
 
