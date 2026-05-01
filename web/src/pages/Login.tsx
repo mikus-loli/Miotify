@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
+import Icon from '@/components/Icon';
 
 export default function LoginPage() {
   const [name, setName] = useState('');
@@ -63,11 +64,10 @@ export default function LoginPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 36,
             marginBottom: 20,
             boxShadow: '0 12px 40px rgba(99, 102, 241, 0.35)',
           }}>
-            📡
+            <Icon name="logo" size={36} color="#ffffff" />
           </div>
           <h1 className="brand-text" style={{ fontSize: 32, marginBottom: 8 }}>
             Miotify

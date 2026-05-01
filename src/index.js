@@ -16,6 +16,7 @@ const applicationRoutes = require('./routes/application');
 const messageRoutes = require('./routes/message');
 const pluginRoutes = require('./routes/plugins');
 const gotifyRoutes = require('./routes/gotify');
+const statsRoutes = require('./routes/stats');
 
 async function start() {
   await db.loadDb();
@@ -67,6 +68,7 @@ async function start() {
   app.use('/api', applicationRoutes);
   app.use('/api', messageRoutes);
   app.use('/api', pluginRoutes);
+  app.use('/api', statsRoutes);
 
   app.use(gotifyRoutes);
 

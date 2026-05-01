@@ -3,6 +3,7 @@ import { useUserStore } from '@/store/users';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/api/client';
 import { formatTime } from '@/utils/format';
+import Icon from '@/components/Icon';
 
 export default function UsersPage() {
   const { users, loading, fetchUsers, createUser, deleteUser } = useUserStore();
@@ -86,7 +87,7 @@ export default function UsersPage() {
           <p className="page-header-subtitle">{users.length} 个用户</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? '取消' : '+ 创建用户'}
+          {showCreate ? '取消' : <><Icon name="plus" size={14} /> 创建用户</>}
         </button>
       </div>
 
@@ -221,17 +222,17 @@ export default function UsersPage() {
                   ) : editingUserId !== user.id && (
                     <>
                       <button className="btn btn-ghost btn-sm" onClick={() => startEditName(user.id, user.name)}>
-                        ✏️ 改名
+                        <Icon name="edit" size={14} /> 改名
                       </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => startEditPassword(user.id)}>
-                        🔑 改密
+                        <Icon name="key" size={14} /> 改密
                       </button>
                     </>
                   )
                 )}
                 {currentUser?.id !== user.id && editingUserId !== user.id && (
                   <button className="btn btn-danger btn-sm" onClick={() => handleDelete(user.id)}>
-                    🗑️ 删除
+                    <Icon name="trash" size={14} /> 删除
                   </button>
                 )}
               </div>

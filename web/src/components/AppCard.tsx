@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { Application } from '@/types';
 import { formatTime } from '@/utils/format';
+import Icon from './Icon';
 
 interface Props {
   app: Application;
@@ -72,9 +73,8 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 20,
             }}>
-              📱
+              <Icon name="app" size={20} color="var(--color-primary)" />
             </div>
           )}
           <div>
@@ -84,15 +84,7 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
             </span>
           </div>
         </div>
-        <span style={{
-          color: 'var(--color-text-muted)',
-          fontSize: 14,
-          transition: 'transform 0.2s ease',
-          transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-          display: 'inline-block',
-        }}>
-          ▼
-        </span>
+        <Icon name="chevronDown" size={16} color="var(--color-text-muted)" />
       </div>
 
       {expanded && (
@@ -141,9 +133,8 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 32,
                     }}>
-                      📱
+                      <Icon name="app" size={28} color="var(--color-primary)" />
                     </div>
                   )}
                 </div>
@@ -165,11 +156,13 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
                       className="btn btn-ghost btn-sm"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      {app.image ? '🔄 更换图标' : '📤 上传图标'}
+                      <Icon name="upload" size={14} />
+                      {app.image ? '更换图标' : '上传图标'}
                     </button>
                     {app.image && (
                       <button className="btn btn-ghost btn-sm" onClick={() => onDeleteImage(app.id)}>
-                        🗑️ 删除图标
+                        <Icon name="trash" size={14} />
+                        删除图标
                       </button>
                     )}
                   </div>
@@ -198,14 +191,21 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
                   onClick={handleCopyToken}
                   style={{ padding: '4px 12px', fontSize: 12 }}
                 >
-                  {copied ? '✓ 已复制' : '复制'}
+                  {copied ? <Icon name="check" size={14} color="var(--color-success)" /> : <Icon name="copy" size={14} />}
+                  {copied ? '已复制' : '复制'}
                 </button>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>✏️ 编辑</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => onDelete(app.id)}>🗑️ 删除</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
+                    <Icon name="edit" size={14} />
+                    编辑
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={() => onDelete(app.id)}>
+                    <Icon name="trash" size={14} />
+                    删除
+                  </button>
                 </div>
                 <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                   创建于 {formatTime(app.created_at)}

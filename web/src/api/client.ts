@@ -13,6 +13,7 @@ import type {
   UpdatePluginEnabledRequest,
   UpdatePluginConfigRequest,
   UpdatePluginPriorityRequest,
+  StatsResponse,
 } from '@/types';
 
 const BASE_URL = '/api';
@@ -126,4 +127,7 @@ export const api = {
 
   setPluginPriority: (id: string, body: UpdatePluginPriorityRequest, token: string) =>
     request<Plugin>('PUT', `/plugin/${id}/priority`, body, token),
+
+  getStats: (token: string) =>
+    request<StatsResponse>('GET', '/stats', undefined, token),
 };

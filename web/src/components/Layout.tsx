@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import ThemeToggle from './ThemeToggle';
+import Icon from './Icon';
 
 const navItems = [
-  { to: '/messages', label: '消息', icon: '💬' },
-  { to: '/applications', label: '应用', icon: '📱' },
-  { to: '/users', label: '用户', icon: '👥' },
-  { to: '/plugins', label: '插件', icon: '🧩' },
+  { to: '/dashboard', label: '仪表盘', icon: 'dashboard' },
+  { to: '/messages', label: '消息', icon: 'message' },
+  { to: '/applications', label: '应用', icon: 'app' },
+  { to: '/users', label: '用户', icon: 'users' },
+  { to: '/plugins', label: '插件', icon: 'plugin' },
 ];
 
 export default function Layout() {
@@ -70,11 +72,10 @@ export default function Layout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 20,
             flexShrink: 0,
             boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
           }}>
-            📡
+            <Icon name="logo" size={22} color="#ffffff" />
           </div>
           <span className="brand-text">Miotify</span>
         </div>
@@ -99,7 +100,7 @@ export default function Layout() {
                 textDecoration: 'none',
               })}
             >
-              <span style={{ fontSize: 18, width: 24, textAlign: 'center' }}>{item.icon}</span>
+              <Icon name={item.icon} size={18} color={undefined} />
               {item.label}
             </NavLink>
           ))}
@@ -126,10 +127,10 @@ export default function Layout() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 14,
               flexShrink: 0,
               color: '#ffffff',
               fontWeight: 700,
+              fontSize: 14,
             }}>
               {user?.name?.charAt(0).toUpperCase() || '?'}
             </div>
@@ -156,8 +157,9 @@ export default function Layout() {
           <button
             className="btn btn-ghost btn-sm"
             onClick={handleLogout}
-            style={{ width: '100%', justifyContent: 'center' }}
+            style={{ width: '100%', justifyContent: 'center', gap: 8 }}
           >
+            <Icon name="logout" size={14} />
             退出登录
           </button>
         </div>
@@ -183,7 +185,7 @@ export default function Layout() {
         onClick={() => setSidebarOpen(!sidebarOpen)}
         aria-label="Toggle menu"
       >
-        {sidebarOpen ? '✕' : '☰'}
+        {sidebarOpen ? <Icon name="close" size={24} color="#ffffff" /> : <Icon name="menu" size={24} color="#ffffff" />}
       </button>
     </div>
   );

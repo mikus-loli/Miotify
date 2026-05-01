@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/apps';
 import AppCard from '@/components/AppCard';
+import Icon from '@/components/Icon';
 
 export default function ApplicationsPage() {
   const { apps, loading, fetchApps, createApp, deleteApp, updateApp, uploadAppImage, deleteAppImage } = useAppStore();
@@ -36,7 +37,7 @@ export default function ApplicationsPage() {
           <p className="page-header-subtitle">{apps.length} 个应用</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? '取消' : '+ 创建应用'}
+          {showCreate ? '取消' : <><Icon name="plus" size={14} /> 创建应用</>}
         </button>
       </div>
 

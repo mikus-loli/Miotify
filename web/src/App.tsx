@@ -5,6 +5,7 @@ import { useThemeStore } from '@/store/theme';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
 import LoginPage from '@/pages/Login';
+import DashboardPage from '@/pages/Dashboard';
 import MessagesPage from '@/pages/Messages';
 import ApplicationsPage from '@/pages/Applications';
 import UsersPage from '@/pages/Users';
@@ -25,7 +26,7 @@ export default function App() {
       <Routes>
         <Route
           path="/login"
-          element={token ? <Navigate to="/messages" replace /> : <LoginPage />}
+          element={token ? <Navigate to="/dashboard" replace /> : <LoginPage />}
         />
         <Route
           element={
@@ -34,11 +35,12 @@ export default function App() {
             </ProtectedRoute>
           }
         >
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/plugins" element={<PluginsPage />} />
-          <Route path="/" element={<Navigate to="/messages" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

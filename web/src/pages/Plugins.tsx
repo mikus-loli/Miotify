@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePluginStore } from '@/store/plugins';
 import type { Plugin } from '@/types';
+import Icon from '@/components/Icon';
 
 function ConfigEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
   const selectOptions: Record<string, { label: string; value: string }[]> = {
@@ -237,10 +238,9 @@ function PluginCard({ plugin, onRefresh }: { plugin: Plugin; onRefresh: () => vo
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 20,
             flexShrink: 0,
           }}>
-            🧩
+            <Icon name="plugin" size={20} color={plugin.enabled ? 'var(--color-primary)' : 'var(--color-text-muted)'} />
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -267,12 +267,11 @@ function PluginCard({ plugin, onRefresh }: { plugin: Plugin; onRefresh: () => vo
           </button>
           <span style={{
             color: 'var(--color-text-muted)',
-            fontSize: 14,
             transition: 'transform 0.2s ease',
             transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
             display: 'inline-block',
           }}>
-            ▼
+            <Icon name="chevronDown" size={16} color="var(--color-text-muted)" />
           </span>
         </div>
       </div>
@@ -331,7 +330,7 @@ function PluginCard({ plugin, onRefresh }: { plugin: Plugin; onRefresh: () => vo
                   onClick={() => setEditingConfig({ ...plugin.config })}
                   style={{ marginBottom: 12 }}
                 >
-                  ✏️ 编辑配置
+                  <Icon name="edit" size={14} /> 编辑配置
                 </button>
                 <pre style={{
                   background: 'var(--color-input-bg)',
@@ -374,7 +373,7 @@ export default function PluginsPage() {
           </p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => fetchPlugins()}>
-          🔄 刷新
+          <Icon name="refresh" size={14} /> 刷新
         </button>
       </div>
 

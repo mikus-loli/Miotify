@@ -102,3 +102,28 @@ export interface UpdatePluginConfigRequest {
 export interface UpdatePluginPriorityRequest {
   priority: number;
 }
+
+export interface StatsResponse {
+  totalApps: number;
+  totalMessages: number;
+  totalUsers: number;
+  todayMessages: number;
+  priorityStats: {
+    low: number;
+    normal: number;
+    high: number;
+  };
+  messagesByDay: {
+    date: string;
+    count: number;
+  }[];
+  messagesByApp: {
+    id: number;
+    name: string;
+    count: number;
+  }[];
+  messagesByHour: {
+    hour: number;
+    count: number;
+  }[];
+}

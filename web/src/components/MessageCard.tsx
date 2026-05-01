@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Message } from '@/types';
 import { useAppStore } from '@/store/apps';
 import { formatTime } from '@/utils/format';
+import Icon from './Icon';
 
 interface Props {
   message: Message;
@@ -32,14 +33,13 @@ export default function MessageCard({ message, onDelete }: Props) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 20,
             flexShrink: 0,
             overflow: 'hidden',
           }}>
             {app?.image ? (
               <img src={app.image} alt={app.name} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 12 }} />
             ) : (
-              '💬'
+              <Icon name="message" size={20} color="var(--color-primary)" />
             )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -94,7 +94,7 @@ export default function MessageCard({ message, onDelete }: Props) {
             style={{ padding: '6px 10px', fontSize: 12, minWidth: 0 }}
             title="删除"
           >
-            🗑️
+            <Icon name="trash" size={14} />
           </button>
         </div>
       </div>
