@@ -1,4 +1,5 @@
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import ThemeToggle from './ThemeToggle';
 
@@ -12,6 +13,22 @@ const navItems = [
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -20,7 +37,12 @@ export default function Layout() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside style={{
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <aside className={sidebarOpen ? 'open' : ''} style={{
         width: 'var(--sidebar-width)',
         background: 'var(--color-surface)',
         borderRight: '1px solid var(--color-border)',
@@ -31,32 +53,33 @@ export default function Layout() {
         left: 0,
         bottom: 0,
         zIndex: 100,
-        transition: 'transform 0.3s ease, background-color 0.35s ease, border-color 0.35s ease',
+        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease, border-color 0.4s ease',
       }}>
         <div style={{
-          padding: '20px 20px 16px',
+          padding: '24px 20px 20px',
           borderBottom: '1px solid var(--color-border)',
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 12,
         }}>
           <div style={{
-            width: 34,
-            height: 34,
-            borderRadius: 10,
+            width: 40,
+            height: 40,
+            borderRadius: 12,
             background: 'var(--gradient-brand)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 18,
+            fontSize: 20,
             flexShrink: 0,
+            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
           }}>
             📡
           </div>
           <span className="brand-text">Miotify</span>
         </div>
 
-        <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -65,68 +88,71 @@ export default function Layout() {
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
+                gap: 12,
+                padding: '12px 16px',
                 borderRadius: 'var(--radius)',
                 fontSize: 14,
-                fontWeight: isActive ? 600 : 400,
+                fontWeight: isActive ? 600 : 500,
                 color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                 background: isActive ? 'var(--color-primary-bg)' : 'transparent',
-                transition: 'all 0.15s ease',
+                transition: 'all 0.2s ease',
                 textDecoration: 'none',
               })}
             >
-              <span style={{ fontSize: 17, width: 22, textAlign: 'center' }}>{item.icon}</span>
+              <span style={{ fontSize: 18, width: 24, textAlign: 'center' }}>{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
         </nav>
 
         <div style={{
-          padding: '12px 14px',
+          padding: '16px',
           borderTop: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
         }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            minWidth: 0,
-            flex: 1,
+            gap: 12,
+            padding: '12px',
+            background: 'var(--color-surface-secondary)',
+            borderRadius: 'var(--radius)',
+            marginBottom: 12,
           }}>
             <div style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: 'var(--color-primary-bg)',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'var(--gradient-brand)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 14,
               flexShrink: 0,
-              color: 'var(--color-primary)',
-              fontWeight: 600,
+              color: '#ffffff',
+              fontWeight: 700,
             }}>
               {user?.name?.charAt(0).toUpperCase() || '?'}
             </div>
-            <span style={{
-              fontSize: 13,
-              fontWeight: 500,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: 'var(--color-text)',
-            }}>
-              {user?.name}
-            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 14,
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                color: 'var(--color-text)',
+              }}>
+                {user?.name}
+              </div>
+              <div style={{
+                fontSize: 11,
+                color: 'var(--color-text-muted)',
+              }}>
+                {user?.admin ? '管理员' : '用户'}
+              </div>
+            </div>
+            <ThemeToggle />
           </div>
-          <ThemeToggle />
-        </div>
-
-        <div style={{ padding: '0 14px 14px' }}>
           <button
             className="btn btn-ghost btn-sm"
             onClick={handleLogout}
@@ -141,16 +167,24 @@ export default function Layout() {
         flex: 1,
         marginLeft: 'var(--sidebar-width)',
         minHeight: '100vh',
-        transition: 'margin-left 0.3s ease',
+        transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <div style={{
           maxWidth: 'var(--content-max-width)',
           margin: '0 auto',
-          padding: '32px 32px 48px',
+          padding: '40px 32px 64px',
         }}>
           <Outlet />
         </div>
       </main>
+
+      <button
+        className="mobile-menu-btn"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle menu"
+      >
+        {sidebarOpen ? '✕' : '☰'}
+      </button>
     </div>
   );
 }

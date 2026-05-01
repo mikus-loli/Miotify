@@ -93,9 +93,9 @@ export default function UsersPage() {
       {showCreate && (
         <div className="section-card animate-slide-down">
           <h3 className="section-title">创建新用户</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                 用户名
               </label>
               <input
@@ -106,7 +106,7 @@ export default function UsersPage() {
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                 密码
               </label>
               <input
@@ -117,7 +117,7 @@ export default function UsersPage() {
                 onChange={(e) => setNewPass(e.target.value)}
               />
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer' }}>
               <input type="checkbox" checked={newAdmin} onChange={(e) => setNewAdmin(e.target.checked)} />
               管理员
             </label>
@@ -135,52 +135,52 @@ export default function UsersPage() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 64 }}>
-          <span className="loading-spinner" style={{ width: 32, height: 32 }} />
+        <div style={{ textAlign: 'center', padding: 80 }}>
+          <span className="loading-spinner loading-spinner-lg" />
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'grid', gap: 10 }}>
           {users.map((user, i) => (
             <div
               key={user.id}
               className="card animate-fade-in"
               style={{
-                padding: 14,
+                padding: 18,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: 10,
-                animationDelay: `${Math.min(i * 0.04, 0.3)}s`,
+                gap: 14,
+                animationDelay: `${Math.min(i * 0.04, 0.4)}s`,
                 opacity: 0,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  background: user.admin ? 'var(--color-primary-bg)' : 'var(--color-success-bg)',
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  background: user.admin ? 'var(--gradient-brand)' : 'var(--color-success-bg)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 15,
+                  fontSize: 16,
                   flexShrink: 0,
-                  color: user.admin ? 'var(--color-primary)' : 'var(--color-success)',
+                  color: user.admin ? '#ffffff' : 'var(--color-success)',
                   fontWeight: 700,
                 }}>
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     {editingUserId === user.id && editMode === 'name' ? (
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
                           className="input"
                           placeholder="新用户名"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          style={{ width: 140 }}
+                          style={{ width: 150 }}
                         />
                         <button className="btn btn-primary btn-sm" onClick={() => handleSaveName(user.id)} disabled={!editName.trim()}>
                           保存
@@ -188,7 +188,7 @@ export default function UsersPage() {
                         <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>取消</button>
                       </div>
                     ) : (
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</span>
+                      <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)' }}>{user.name}</span>
                     )}
                     {user.admin ? (
                       <span className="badge badge-primary">管理员</span>
@@ -196,12 +196,12 @@ export default function UsersPage() {
                       <span className="badge badge-success">普通用户</span>
                     )}
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2, display: 'block' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
                     创建于 {formatTime(user.created_at)}
                   </span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 {(currentUser?.id === user.id || currentUser?.admin) && (
                   editingUserId === user.id && editMode === 'password' ? (
                     <>
@@ -211,7 +211,7 @@ export default function UsersPage() {
                         placeholder="新密码"
                         value={editPass}
                         onChange={(e) => setEditPass(e.target.value)}
-                        style={{ width: 140 }}
+                        style={{ width: 150 }}
                       />
                       <button className="btn btn-primary btn-sm" onClick={() => handleSavePassword(user.id)} disabled={!editPass.trim()}>
                         保存

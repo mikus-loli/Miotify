@@ -23,15 +23,15 @@ export default function MessagesPage() {
         <div>
           <h1>消息</h1>
           <p className="page-header-subtitle">
-            {messages.length} 条消息{filterApp !== 'all' ? ` · 筛选中` : ''}
+            {messages.length} 条消息{filterApp !== 'all' ? ' · 筛选中' : ''}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <select
             className="input"
             value={filterApp}
             onChange={(e) => setFilterApp(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ width: 'auto', minWidth: 140 }}
+            style={{ width: 'auto', minWidth: 150 }}
           >
             <option value="all">全部应用</option>
             {apps.map((app) => (
@@ -42,8 +42,8 @@ export default function MessagesPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 64 }}>
-          <span className="loading-spinner" style={{ width: 32, height: 32 }} />
+        <div style={{ textAlign: 'center', padding: 80 }}>
+          <span className="loading-spinner loading-spinner-lg" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -51,9 +51,9 @@ export default function MessagesPage() {
           <p>暂无消息</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
           {filtered.map((msg, i) => (
-            <div key={msg.id} className="animate-fade-in" style={{ animationDelay: `${Math.min(i * 0.03, 0.3)}s`, opacity: 0 }}>
+            <div key={msg.id} className="animate-fade-in" style={{ animationDelay: `${Math.min(i * 0.04, 0.4)}s`, opacity: 0 }}>
               <MessageCard message={msg} onDelete={deleteMessage} />
             </div>
           ))}

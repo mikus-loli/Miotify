@@ -18,44 +18,44 @@ export default function MessageCard({ message, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
   const apps = useAppStore((s) => s.apps);
   const app = apps.find((a) => a.id === message.appid);
-  const isLong = message.message && message.message.length > 120;
+  const isLong = message.message && message.message.length > 150;
 
   return (
-    <div className="card" style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 12, flex: 1, minWidth: 0 }}>
+    <div className="card" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 16, flex: 1, minWidth: 0 }}>
           <div style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
             background: app?.image ? 'transparent' : 'var(--color-primary-bg)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 18,
+            fontSize: 20,
             flexShrink: 0,
             overflow: 'hidden',
           }}>
             {app?.image ? (
-              <img src={app.image} alt={app.name} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 10 }} />
+              <img src={app.image} alt={app.name} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 12 }} />
             ) : (
               '💬'
             )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{message.title || '通知'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)' }}>{message.title || '通知'}</span>
               {priorityBadge(message.priority)}
               {app && (
-                <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                <span style={{ fontSize: 12, color: 'var(--color-text-muted)', background: 'var(--color-surface-secondary)', padding: '2px 8px', borderRadius: 6 }}>
                   {app.name}
                 </span>
               )}
             </div>
             <p style={{
-              fontSize: 13,
+              fontSize: 14,
               color: 'var(--color-text-secondary)',
-              lineHeight: 1.6,
+              lineHeight: 1.7,
               margin: 0,
               wordBreak: 'break-word',
               whiteSpace: 'pre-wrap',
@@ -73,8 +73,8 @@ export default function MessageCard({ message, onDelete }: Props) {
                   background: 'none',
                   border: 'none',
                   color: 'var(--color-primary)',
-                  fontSize: 12,
-                  padding: '4px 0',
+                  fontSize: 13,
+                  padding: '6px 0',
                   cursor: 'pointer',
                   fontWeight: 500,
                 }}
@@ -84,17 +84,17 @@ export default function MessageCard({ message, onDelete }: Props) {
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
             {formatTime(message.created_at)}
           </span>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => onDelete(message.id)}
-            style={{ padding: '4px 8px', fontSize: 11, minWidth: 0 }}
+            style={{ padding: '6px 10px', fontSize: 12, minWidth: 0 }}
             title="删除"
           >
-            ✕
+            🗑️
           </button>
         </div>
       </div>

@@ -43,9 +43,9 @@ export default function ApplicationsPage() {
       {showCreate && (
         <div className="section-card animate-slide-down">
           <h3 className="section-title">创建新应用</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                 应用名称
               </label>
               <input
@@ -56,7 +56,7 @@ export default function ApplicationsPage() {
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                 应用描述
               </label>
               <input
@@ -80,18 +80,19 @@ export default function ApplicationsPage() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 64 }}>
-          <span className="loading-spinner" style={{ width: 32, height: 32 }} />
+        <div style={{ textAlign: 'center', padding: 80 }}>
+          <span className="loading-spinner loading-spinner-lg" />
         </div>
       ) : apps.length === 0 ? (
         <div className="empty-state">
           <p>📱</p>
-          <p>暂无应用，点击上方按钮创建</p>
+          <p>暂无应用</p>
+          <p>点击上方按钮创建第一个应用</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
           {apps.map((app, i) => (
-            <div key={app.id} className="animate-fade-in" style={{ animationDelay: `${Math.min(i * 0.04, 0.3)}s`, opacity: 0 }}>
+            <div key={app.id} className="animate-fade-in" style={{ animationDelay: `${Math.min(i * 0.05, 0.4)}s`, opacity: 0 }}>
               <AppCard
                 app={app}
                 onDelete={handleDelete}
