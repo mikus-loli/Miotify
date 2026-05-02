@@ -12,10 +12,10 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
   try {
     let { title, message, priority } = req.body;
     if (!message) {
-      throw new AppError('message is required', 400);
+      throw new AppError('消息内容不能为空', 400);
     }
     if (message.length > config.maxMessageLength) {
-      throw new AppError(`message too long (max ${config.maxMessageLength} chars)`, 400);
+      throw new AppError(`消息长度超过限制（最大 ${config.maxMessageLength} 字符）`, 400);
     }
 
     const processed = await pluginManager.executeHook('message:beforeSend', {
@@ -30,12 +30,12 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
         level: 'warn',
         category: 'message',
         action: 'message_rejected',
-        message: `Message rejected by plugin for app "${req.app.name}"`,
+        message: `消息被插件拒绝：应用 "${req.app.name}"`,
         appId: req.app.id,
         appName: req.app.name,
         details: { title, messagePreview: message.substring(0, 100) },
       });
-      throw new AppError('message rejected by plugin', 400);
+      throw new AppError('消息被插件拒绝', 400);
     }
 
     title = processed.title;
@@ -61,7 +61,7 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
       level: 'info',
       category: 'message',
       action: 'message_sent',
-      message: `Message sent via app "${req.app.name}"`,
+      message: `通过应用 "${req.app.name}" 发送消息`,
       appId: req.app.id,
       appName: req.app.name,
       details: { messageId: msg.id, title: msg.title, priority: msg.priority },
@@ -87,7 +87,7 @@ router.get('/message', authMiddleware, (req, res, next) => {
     if (appid) {
       const app = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [appid, req.user.id]);
       if (!app) {
-        throw new AppError('application not found', 404);
+        throw new AppError('应用不存在', 404);
       }
       sql = 'SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid = ? AND id > ? ORDER BY id DESC LIMIT ?';
       params = [appid, since, limit];
@@ -113,11 +113,11 @@ router.get('/message/:id', authMiddleware, (req, res, next) => {
     const id = parseInt(req.params.id, 10);
     const msg = db.queryOne('SELECT id, appid, message, title, priority, created_at FROM messages WHERE id = ?', [id]);
     if (!msg) {
-      throw new AppError('message not found', 404);
+      throw new AppError('消息不存在', 404);
     }
     const app = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [msg.appid, req.user.id]);
     if (!app) {
-      throw new AppError('message not found', 404);
+      throw new AppError('消息不存在', 404);
     }
     res.json(msg);
   } catch (err) {
@@ -130,14 +130,14 @@ router.delete('/message/:id', authMiddleware, (req, res, next) => {
     const id = parseInt(req.params.id, 10);
     const msg = db.queryOne('SELECT id, appid FROM messages WHERE id = ?', [id]);
     if (!msg) {
-      throw new AppError('message not found', 404);
+      throw new AppError('消息不存在', 404);
     }
     const app = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [msg.appid, req.user.id]);
     if (!app) {
-      throw new AppError('message not found', 404);
+      throw new AppError('消息不存在', 404);
     }
     db.run('DELETE FROM messages WHERE id = ?', [id]);
-    res.json({ message: 'message deleted' });
+    res.json({ message: '消息已删除' });
   } catch (err) {
     next(err);
   }

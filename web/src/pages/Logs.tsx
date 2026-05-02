@@ -28,6 +28,22 @@ const categoryLabels: Record<string, string> = {
   system: '系统',
 };
 
+const actionLabels: Record<string, string> = {
+  login: '登录',
+  login_failed: '登录失败',
+  logout: '登出',
+  create: '创建',
+  delete: '删除',
+  update: '更新',
+  change_password: '修改密码',
+  message_sent: '发送消息',
+  message_rejected: '消息被拒绝',
+  clear_logs: '清理日志',
+  enable: '启用',
+  disable: '禁用',
+  config_update: '配置更新',
+};
+
 export default function LogsPage() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
@@ -197,7 +213,7 @@ export default function LogsPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 12 }}>
                       <div>
                         <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>操作</span>
-                        <div style={{ fontSize: 14, color: 'var(--color-text)' }}>{log.action}</div>
+                        <div style={{ fontSize: 14, color: 'var(--color-text)' }}>{actionLabels[log.action] || log.action}</div>
                       </div>
                       {log.app_name && (
                         <div>

@@ -12,7 +12,7 @@ router.post('/login', (req, res, next) => {
   try {
     const { name, pass } = req.body;
     if (!name || !pass) {
-      throw new AppError('name and pass are required', 400);
+      throw new AppError('请输入用户名和密码', 400);
     }
     const user = db.queryOne('SELECT id, name, pass, admin FROM users WHERE name = ?', [name]);
     if (!user) {
@@ -20,10 +20,10 @@ router.post('/login', (req, res, next) => {
         level: 'warn',
         category: 'auth',
         action: 'login_failed',
-        message: `Login failed: user "${name}" not found`,
+        message: `登录失败：用户 "${name}" 不存在`,
         ip: req.ip || req.connection.remoteAddress,
       });
-      throw new AppError('invalid username or password', 401);
+      throw new AppError('用户名或密码错误', 401);
     }
     const valid = bcrypt.compareSync(pass, user.pass);
     if (!valid) {
@@ -31,12 +31,12 @@ router.post('/login', (req, res, next) => {
         level: 'warn',
         category: 'auth',
         action: 'login_failed',
-        message: `Login failed: wrong password for user "${name}"`,
+        message: `登录失败：用户 "${name}" 密码错误`,
         userId: user.id,
         userName: user.name,
         ip: req.ip || req.connection.remoteAddress,
       });
-      throw new AppError('invalid username or password', 401);
+      throw new AppError('用户名或密码错误', 401);
     }
     const token = jwt.sign({ id: user.id, name: user.name, admin: user.admin }, config.jwtSecret, {
       expiresIn: config.jwtExpiresIn,
@@ -45,7 +45,7 @@ router.post('/login', (req, res, next) => {
       level: 'info',
       category: 'auth',
       action: 'login',
-      message: `User "${user.name}" logged in`,
+      message: `用户 "${user.name}" 登录成功`,
       userId: user.id,
       userName: user.name,
       ip: req.ip || req.connection.remoteAddress,
@@ -60,15 +60,24 @@ router.post('/user', authMiddleware, adminMiddleware, (req, res, next) => {
   try {
     const { name, pass, admin } = req.body;
     if (!name || !pass) {
-      throw new AppError('name and pass are required', 400);
+      throw new AppError('请输入用户名和密码', 400);
     }
     const existing = db.queryOne('SELECT id FROM users WHERE name = ?', [name]);
     if (existing) {
-      throw new AppError('username already exists', 409);
+      throw new AppError('用户名已存在', 409);
     }
     const hash = bcrypt.hashSync(pass, 10);
     db.run('INSERT INTO users (name, pass, admin) VALUES (?, ?, ?)', [name, hash, admin ? 1 : 0]);
     const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE name = ?', [name]);
+    db.addLog({
+      level: 'info',
+      category: 'user',
+      action: 'create',
+      message: `创建用户 "${name}"`,
+      userId: req.user.id,
+      userName: req.user.name,
+      details: { newUserId: user.id, newUser: name, admin: !!admin },
+    });
     res.status(201).json(user);
   } catch (err) {
     next(err);
@@ -88,11 +97,11 @@ router.get('/user/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id !== req.user.id && !req.user.admin) {
-      throw new AppError('forbidden', 403);
+      throw new AppError('无权访问', 403);
     }
     const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE id = ?', [id]);
     if (!user) {
-      throw new AppError('user not found', 404);
+      throw new AppError('用户不存在', 404);
     }
     res.json(user);
   } catch (err) {
@@ -104,19 +113,19 @@ router.put('/user/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id !== req.user.id && !req.user.admin) {
-      throw new AppError('forbidden', 403);
+      throw new AppError('无权操作', 403);
     }
     const existing = db.queryOne('SELECT id FROM users WHERE id = ?', [id]);
     if (!existing) {
-      throw new AppError('user not found', 404);
+      throw new AppError('用户不存在', 404);
     }
     const { name } = req.body;
     if (!name || !name.trim()) {
-      throw new AppError('name is required', 400);
+      throw new AppError('请输入用户名', 400);
     }
     const duplicate = db.queryOne('SELECT id FROM users WHERE name = ? AND id != ?', [name.trim(), id]);
     if (duplicate) {
-      throw new AppError('username already exists', 409);
+      throw new AppError('用户名已存在', 409);
     }
     db.run('UPDATE users SET name = ? WHERE id = ?', [name.trim(), id]);
     const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE id = ?', [id]);
@@ -130,19 +139,28 @@ router.put('/user/:id/password', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id !== req.user.id && !req.user.admin) {
-      throw new AppError('forbidden', 403);
+      throw new AppError('无权操作', 403);
     }
     const existing = db.queryOne('SELECT id FROM users WHERE id = ?', [id]);
     if (!existing) {
-      throw new AppError('user not found', 404);
+      throw new AppError('用户不存在', 404);
     }
     const { pass } = req.body;
     if (!pass) {
-      throw new AppError('pass is required', 400);
+      throw new AppError('请输入密码', 400);
     }
     const hash = bcrypt.hashSync(pass, 10);
     db.run('UPDATE users SET pass = ? WHERE id = ?', [hash, id]);
-    res.json({ message: 'password updated' });
+    db.addLog({
+      level: 'info',
+      category: 'user',
+      action: 'change_password',
+      message: `修改用户密码`,
+      userId: req.user.id,
+      userName: req.user.name,
+      details: { targetUserId: id },
+    });
+    res.json({ message: '密码已更新' });
   } catch (err) {
     next(err);
   }
@@ -152,14 +170,23 @@ router.delete('/user/:id', authMiddleware, adminMiddleware, (req, res, next) => 
   try {
     const id = parseInt(req.params.id, 10);
     if (id === req.user.id) {
-      throw new AppError('cannot delete yourself', 400);
+      throw new AppError('不能删除自己', 400);
     }
-    const user = db.queryOne('SELECT id FROM users WHERE id = ?', [id]);
+    const user = db.queryOne('SELECT id, name FROM users WHERE id = ?', [id]);
     if (!user) {
-      throw new AppError('user not found', 404);
+      throw new AppError('用户不存在', 404);
     }
     db.run('DELETE FROM users WHERE id = ?', [id]);
-    res.json({ message: 'user deleted' });
+    db.addLog({
+      level: 'info',
+      category: 'user',
+      action: 'delete',
+      message: `删除用户 "${user.name}"`,
+      userId: req.user.id,
+      userName: req.user.name,
+      details: { deletedUserId: id, deletedUserName: user.name },
+    });
+    res.json({ message: '用户已删除' });
   } catch (err) {
     next(err);
   }

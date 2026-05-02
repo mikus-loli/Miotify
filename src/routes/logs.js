@@ -17,14 +17,14 @@ router.get('/logs', authMiddleware, (req, res) => {
     res.json({ logs, total, limit, offset });
   } catch (err) {
     console.error('[Logs API Error]', err);
-    res.status(500).json({ error: 'Failed to fetch logs' });
+    res.status(500).json({ error: '获取日志失败' });
   }
 });
 
 router.delete('/logs', authMiddleware, (req, res) => {
   try {
     if (!req.user.admin) {
-      return res.status(403).json({ error: 'Admin only' });
+      return res.status(403).json({ error: '需要管理员权限' });
     }
     const beforeDays = parseInt(req.query.beforeDays, 10) || 30;
     const deleted = db.clearLogs({ beforeDays });
@@ -32,15 +32,15 @@ router.delete('/logs', authMiddleware, (req, res) => {
       level: 'info',
       category: 'system',
       action: 'clear_logs',
-      message: `Cleared logs older than ${beforeDays} days`,
+      message: `清理了 ${beforeDays} 天前的日志`,
       details: { deletedCount: deleted, beforeDays },
       userId: req.user.id,
       userName: req.user.name,
     });
-    res.json({ message: 'Logs cleared', deleted });
+    res.json({ message: '日志已清理', deleted });
   } catch (err) {
     console.error('[Logs API Error]', err);
-    res.status(500).json({ error: 'Failed to clear logs' });
+    res.status(500).json({ error: '清理日志失败' });
   }
 });
 
@@ -63,7 +63,7 @@ router.get('/logs/stats', authMiddleware, (req, res) => {
     });
   } catch (err) {
     console.error('[Logs API Error]', err);
-    res.status(500).json({ error: 'Failed to fetch log stats' });
+    res.status(500).json({ error: '获取日志统计失败' });
   }
 });
 
