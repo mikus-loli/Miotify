@@ -26,14 +26,13 @@ router.delete('/logs', authMiddleware, (req, res) => {
     if (!req.user.admin) {
       return res.status(403).json({ error: '需要管理员权限' });
     }
-    const beforeDays = parseInt(req.query.beforeDays, 10) || 30;
-    const deleted = db.clearLogs({ beforeDays });
+    const deleted = db.clearLogs();
     db.addLog({
       level: 'info',
       category: 'system',
       action: 'clear_logs',
-      message: `清理了 ${beforeDays} 天前的日志`,
-      details: { deletedCount: deleted, beforeDays },
+      message: `清理了所有日志`,
+      details: { deletedCount: deleted },
       userId: req.user.id,
       userName: req.user.name,
     });

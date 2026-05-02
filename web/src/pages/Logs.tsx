@@ -81,15 +81,9 @@ export default function LogsPage() {
 
   const handleClearLogs = async () => {
     if (!token || !user?.admin) return;
-    const days = prompt('清除多少天前的日志？', '30');
-    if (!days) return;
-    const daysNum = parseInt(days, 10);
-    if (isNaN(daysNum) || daysNum < 1) {
-      alert('请输入有效的天数');
-      return;
-    }
+    if (!confirm('确定要清除所有日志吗？此操作不可恢复。')) return;
     try {
-      const result = await api.clearLogs(token, daysNum);
+      const result = await api.clearLogs(token);
       alert(`已删除 ${result.deleted} 条日志`);
       fetchData();
     } catch (err) {

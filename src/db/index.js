@@ -241,12 +241,8 @@ function getLogCount({ level = null, category = null, userId = null }) {
   return queryOne(sql, params).cnt;
 }
 
-function clearLogs({ beforeDays = 30 }) {
-  const modifier = `-${beforeDays} days`;
-  const result = run(
-    "DELETE FROM logs WHERE date(created_at) < date('now', ?)",
-    [modifier]
-  );
+function clearLogs() {
+  const result = run("DELETE FROM logs");
   return result;
 }
 

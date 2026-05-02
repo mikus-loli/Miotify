@@ -146,6 +146,6 @@ export const api = {
   getLogStats: (token: string) =>
     request<LogStatsResponse>('GET', '/logs/stats', undefined, token),
 
-  clearLogs: (token: string, beforeDays: number) =>
-    request<{ message: string; deleted: number }>('DELETE', `/logs?beforeDays=${beforeDays}`, undefined, token),
+  clearLogs: (token: string) =>
+    request<{ message: string; deleted: number }>('DELETE', '/logs', undefined, token),
 };
