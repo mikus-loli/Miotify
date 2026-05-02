@@ -32,6 +32,7 @@ async function loadPlugins() {
   const registeredMap = new Map(registeredPlugins.map(p => [p.id, p]));
 
   const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
+  const loadedPluginIds = new Set();
 
   for (const file of files) {
     const pluginPath = path.join(pluginsDir, file);
@@ -45,6 +46,7 @@ async function loadPlugins() {
       }
 
       const pluginId = pluginDef.meta.id;
+      loadedPluginIds.add(pluginId);
       const defaultConfig = pluginDef.defaultConfig || {};
 
       if (registeredMap.has(pluginId)) {
@@ -90,6 +92,14 @@ async function loadPlugins() {
       }
     } catch (err) {
       console.error(`[Plugin] Failed to load ${file}:`, err.message);
+    }
+  }
+
+  for (const registered of registeredPlugins) {
+    if (!loadedPluginIds.has(registered.id)) {
+      db.run('DELETE FROM plugins WHERE id = ?', [registered.id]);
+      db.run('DELETE FROM plugin_data WHERE plugin_id = ?', [registered.id]);
+      console.log(`[Plugin] Removed: ${registered.id} (file not found)`);
     }
   }
 }
