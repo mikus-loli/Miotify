@@ -2,6 +2,7 @@ interface Props {
   name: string;
   size?: number;
   color?: string;
+  style?: React.CSSProperties;
 }
 
 const icons: Record<string, (size: number, color: string) => React.ReactNode> = {
@@ -127,8 +128,8 @@ const icons: Record<string, (size: number, color: string) => React.ReactNode> = 
   ),
 };
 
-export default function Icon({ name, size = 18, color = 'currentColor' }: Props) {
+export default function Icon({ name, size = 18, color = 'currentColor', style }: Props) {
   const renderIcon = icons[name];
   if (!renderIcon) return null;
-  return <>{renderIcon(size, color)}</>;
+  return <span style={{ display: 'inline-flex', ...style }}>{renderIcon(size, color)}</span>;
 }

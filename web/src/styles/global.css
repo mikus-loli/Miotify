@@ -717,6 +717,58 @@ textarea.input {
   height: 20px;
 }
 
+.mobile-menu-fab {
+  display: none;
+}
+
+.mobile-menu-fab:hover {
+  transform: scale(1.05);
+}
+
+.mobile-menu-fab:active {
+  transform: scale(0.95);
+}
+
+.mobile-menu-item {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mobile-menu-item:active {
+  background: var(--color-surface-hover);
+}
+
+.mobile-menu-submenu {
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInOverlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .mobile-menu-btn {
   display: none;
   position: fixed;
@@ -768,7 +820,8 @@ textarea.input {
     --sidebar-width: 280px;
   }
 
-  .mobile-menu-btn {
+  .mobile-menu-btn,
+  .mobile-menu-fab {
     display: flex;
   }
 
@@ -831,6 +884,36 @@ textarea.input {
   .btn-sm {
     padding: 5px 10px;
     font-size: 11px;
+  }
+}
+
+@media (max-width: 375px) {
+  :root {
+    font-size: 14px;
+  }
+
+  .page-header h1 {
+    font-size: 18px;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: var(--radius);
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 320px) {
+  :root {
+    font-size: 13px;
+  }
+
+  .page-header h1 {
+    font-size: 17px;
   }
 }
 

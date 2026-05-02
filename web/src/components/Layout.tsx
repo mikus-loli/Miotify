@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
 import ThemeToggle from './ThemeToggle';
 import Icon from './Icon';
+import MobileMenu from './MobileMenu';
 
 const navItems = [
   { to: '/dashboard', label: '仪表盘', icon: 'dashboard' },
@@ -16,21 +17,15 @@ const navItems = [
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    setSidebarOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 768) {
-        setSidebarOpen(false);
-      }
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleLogout = () => {
@@ -38,14 +33,30 @@ export default function Layout() {
     navigate('/login');
   };
 
+  if (isMobile) {
+    return (
+      <div style={{ minHeight: '100vh' }}>
+        <main style={{
+          flex: 1,
+          minHeight: '100vh',
+          paddingBottom: 80,
+        }}>
+          <div style={{
+            maxWidth: '100%',
+            margin: '0 auto',
+            padding: '24px 16px 32px',
+          }}>
+            <Outlet />
+          </div>
+        </main>
+        <MobileMenu />
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <aside className={sidebarOpen ? 'open' : ''} style={{
+      <aside style={{
         width: 'var(--sidebar-width)',
         background: 'var(--color-surface)',
         borderRight: '1px solid var(--color-border)',
@@ -56,7 +67,7 @@ export default function Layout() {
         left: 0,
         bottom: 0,
         zIndex: 100,
-        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease, border-color 0.4s ease',
+        transition: 'background-color 0.4s ease, border-color 0.4s ease',
       }}>
         <div style={{
           padding: '24px 20px 20px',
@@ -170,7 +181,6 @@ export default function Layout() {
         flex: 1,
         marginLeft: 'var(--sidebar-width)',
         minHeight: '100vh',
-        transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <div style={{
           maxWidth: 'var(--content-max-width)',
@@ -180,14 +190,6 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
-
-      <button
-        className="mobile-menu-btn"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        aria-label="Toggle menu"
-      >
-        {sidebarOpen ? <Icon name="close" size={24} color="#ffffff" /> : <Icon name="menu" size={24} color="#ffffff" />}
-      </button>
     </div>
   );
 }

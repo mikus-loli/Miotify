@@ -30,6 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ token: res.token, user: res, loading: false });
     } catch (err) {
       set({ error: (err as Error).message, loading: false });
+      throw err;
     }
   },
 
