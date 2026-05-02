@@ -242,9 +242,10 @@ function getLogCount({ level = null, category = null, userId = null }) {
 }
 
 function clearLogs({ beforeDays = 30 }) {
+  const modifier = `-${beforeDays} days`;
   const result = run(
-    "DELETE FROM logs WHERE date(created_at) < date('now', '-' || ? || ' days')",
-    [beforeDays]
+    "DELETE FROM logs WHERE date(created_at) < date('now', ?)",
+    [modifier]
   );
   return result;
 }
