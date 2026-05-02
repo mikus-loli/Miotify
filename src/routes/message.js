@@ -26,6 +26,15 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
     });
 
     if (processed === null) {
+      db.addLog({
+        level: 'warn',
+        category: 'message',
+        action: 'message_rejected',
+        message: `Message rejected by plugin for app "${req.app.name}"`,
+        appId: req.app.id,
+        appName: req.app.name,
+        details: { title, messagePreview: message.substring(0, 100) },
+      });
       throw new AppError('message rejected by plugin', 400);
     }
 
@@ -47,6 +56,16 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
       priority || 0,
     ]);
     const msg = db.queryOne('SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid = ? ORDER BY id DESC LIMIT 1', [req.app.id]);
+
+    db.addLog({
+      level: 'info',
+      category: 'message',
+      action: 'message_sent',
+      message: `Message sent via app "${req.app.name}"`,
+      appId: req.app.id,
+      appName: req.app.name,
+      details: { messageId: msg.id, title: msg.title, priority: msg.priority },
+    });
 
     await pluginManager.executeHook('message:afterSend', msg);
 

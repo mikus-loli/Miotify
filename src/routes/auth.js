@@ -16,14 +16,39 @@ router.post('/login', (req, res, next) => {
     }
     const user = db.queryOne('SELECT id, name, pass, admin FROM users WHERE name = ?', [name]);
     if (!user) {
+      db.addLog({
+        level: 'warn',
+        category: 'auth',
+        action: 'login_failed',
+        message: `Login failed: user "${name}" not found`,
+        ip: req.ip || req.connection.remoteAddress,
+      });
       throw new AppError('invalid username or password', 401);
     }
     const valid = bcrypt.compareSync(pass, user.pass);
     if (!valid) {
+      db.addLog({
+        level: 'warn',
+        category: 'auth',
+        action: 'login_failed',
+        message: `Login failed: wrong password for user "${name}"`,
+        userId: user.id,
+        userName: user.name,
+        ip: req.ip || req.connection.remoteAddress,
+      });
       throw new AppError('invalid username or password', 401);
     }
     const token = jwt.sign({ id: user.id, name: user.name, admin: user.admin }, config.jwtSecret, {
       expiresIn: config.jwtExpiresIn,
+    });
+    db.addLog({
+      level: 'info',
+      category: 'auth',
+      action: 'login',
+      message: `User "${user.name}" logged in`,
+      userId: user.id,
+      userName: user.name,
+      ip: req.ip || req.connection.remoteAddress,
     });
     res.json({ token, id: user.id, name: user.name, admin: !!user.admin });
   } catch (err) {

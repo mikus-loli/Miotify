@@ -127,3 +127,31 @@ export interface StatsResponse {
     count: number;
   }[];
 }
+
+export interface Log {
+  id: number;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  category: string;
+  action: string;
+  message: string;
+  details: Record<string, unknown>;
+  user_id: number | null;
+  user_name: string | null;
+  app_id: number | null;
+  app_name: string | null;
+  ip: string | null;
+  created_at: string;
+}
+
+export interface LogsResponse {
+  logs: Log[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface LogStatsResponse {
+  levelStats: Record<string, number>;
+  categoryStats: { category: string; cnt: number }[];
+  recentCount: number;
+}

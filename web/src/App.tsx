@@ -10,6 +10,7 @@ import MessagesPage from '@/pages/Messages';
 import ApplicationsPage from '@/pages/Applications';
 import UsersPage from '@/pages/Users';
 import PluginsPage from '@/pages/Plugins';
+import LogsPage from '@/pages/Logs';
 
 export default function App() {
   const initAuth = useAuthStore((s) => s.init);
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/plugins" element={<PluginsPage />} />
+          <Route path="/logs" element={<LogsPage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

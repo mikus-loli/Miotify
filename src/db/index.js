@@ -64,9 +64,27 @@ const SQL_INIT = `
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    level TEXT NOT NULL DEFAULT 'info',
+    category TEXT NOT NULL,
+    action TEXT NOT NULL,
+    message TEXT NOT NULL,
+    details TEXT DEFAULT '{}',
+    user_id INTEGER,
+    user_name TEXT,
+    app_id INTEGER,
+    app_name TEXT,
+    ip TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_appid ON messages(appid);
   CREATE INDEX IF NOT EXISTS idx_applications_token ON applications(token);
   CREATE INDEX IF NOT EXISTS idx_applications_user_id ON applications(user_id);
+  CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at);
+  CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+  CREATE INDEX IF NOT EXISTS idx_logs_category ON logs(category);
 `;
 
 const crypto = require('crypto');
@@ -173,4 +191,62 @@ function getDb() {
   return db;
 }
 
-module.exports = { loadDb, run, queryAll, queryOne, getDb, save, getOrGenerateJwtSecret, getSetting, setSetting };
+function addLog({ level = 'info', category, action, message, details = {}, userId = null, userName = null, appId = null, appName = null, ip = null }) {
+  run(
+    'INSERT INTO logs (level, category, action, message, details, user_id, user_name, app_id, app_name, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [level, category, action, message, JSON.stringify(details), userId, userName, appId, appName, ip]
+  );
+}
+
+function getLogs({ level = null, category = null, userId = null, limit = 100, offset = 0 }) {
+  let sql = 'SELECT * FROM logs WHERE 1=1';
+  const params = [];
+  
+  if (level) {
+    sql += ' AND level = ?';
+    params.push(level);
+  }
+  if (category) {
+    sql += ' AND category = ?';
+    params.push(category);
+  }
+  if (userId) {
+    sql += ' AND user_id = ?';
+    params.push(userId);
+  }
+  
+  sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
+  params.push(limit, offset);
+  
+  return queryAll(sql, params);
+}
+
+function getLogCount({ level = null, category = null, userId = null }) {
+  let sql = 'SELECT COUNT(*) as cnt FROM logs WHERE 1=1';
+  const params = [];
+  
+  if (level) {
+    sql += ' AND level = ?';
+    params.push(level);
+  }
+  if (category) {
+    sql += ' AND category = ?';
+    params.push(category);
+  }
+  if (userId) {
+    sql += ' AND user_id = ?';
+    params.push(userId);
+  }
+  
+  return queryOne(sql, params).cnt;
+}
+
+function clearLogs({ beforeDays = 30 }) {
+  const result = run(
+    "DELETE FROM logs WHERE date(created_at) < date('now', '-' || ? || ' days')",
+    [beforeDays]
+  );
+  return result;
+}
+
+module.exports = { loadDb, run, queryAll, queryOne, getDb, save, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs };

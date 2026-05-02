@@ -10,6 +10,7 @@ const navItems = [
   { to: '/applications', label: '应用', icon: 'app' },
   { to: '/users', label: '用户', icon: 'users' },
   { to: '/plugins', label: '插件', icon: 'plugin' },
+  { to: '/logs', label: '日志', icon: 'log' },
 ];
 
 export default function Layout() {
