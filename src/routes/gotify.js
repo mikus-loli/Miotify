@@ -4,6 +4,7 @@ const config = require('../config');
 const pluginManager = require('../plugins/manager');
 const wsManager = require('../websocket');
 const { AppError } = require('../middleware/error');
+const { maskToken } = require('../utils/security');
 
 const router = express.Router();
 
@@ -288,12 +289,6 @@ router.delete('/message/:id', gotifyTokenMiddleware, requireClientToken, (req, r
     next(err);
   }
 });
-
-// 隐藏 token，只显示前 8 个字符
-function maskToken(token) {
-  if (!token || token.length <= 12) return token;
-  return token.substring(0, 8) + '...' + token.substring(token.length - 4);
-}
 
 router.get('/application', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {

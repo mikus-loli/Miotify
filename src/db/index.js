@@ -258,4 +258,4 @@ function clearLogs() {
   return result;
 }
 
-module.exports = { loadDb, run, queryAll, queryOne, getDb, save, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs };
+module.exports = { loadDb, run, queryAll, queryOne, getDb, save, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs, ensureAdmin };

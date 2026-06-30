@@ -6,27 +6,13 @@ const db = require('../db');
 const config = require('../config');
 const { authMiddleware } = require('../middleware/auth');
 const { AppError } = require('../middleware/error');
+const { formatAppResponse } = require('../utils/security');
 
 const router = express.Router();
 
 const uploadDir = path.join(path.dirname(config.dbPath), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// 隐藏 token，只显示前 8 个字符
-function maskToken(token) {
-  if (!token || token.length <= 8) return token;
-  return token.substring(0, 8) + '...' + token.substring(token.length - 4);
-}
-
-// 格式化应用响应，隐藏 token（创建时除外）
-function formatAppResponse(app, showFullToken = false) {
-  if (!app) return null;
-  return {
-    ...app,
-    token: showFullToken ? app.token : maskToken(app.token),
-  };
 }
 
 router.post('/application', authMiddleware, (req, res, next) => {
