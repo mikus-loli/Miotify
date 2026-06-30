@@ -25,12 +25,24 @@ async function start() {
 
   const { secret, generated } = db.getOrGenerateJwtSecret();
   config.setJwtSecret(secret);
-  if (generated) {
+  if (generated && process.env.NODE_ENV !== 'production') {
     console.log('');
     console.log('========================================');
     console.log('[IMPORTANT] JWT Secret Generated:');
     console.log(secret);
     console.log('Please save this secret securely!');
+    console.log('========================================');
+    console.log('');
+  }
+
+  const adminResult = await db.ensureAdmin();
+  if (adminResult.created) {
+    console.log('');
+    console.log('========================================');
+    console.log('[IMPORTANT] Admin Account Created:');
+    console.log(`Username: ${adminResult.user}`);
+    console.log(`Password: ${adminResult.pass}`);
+    console.log('Please change the password after first login!');
     console.log('========================================');
     console.log('');
   }
@@ -43,8 +55,21 @@ async function start() {
   app.set('trust proxy', 1);
 
   app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "data:"],
+        connectSrc: ["'self'", "ws:", "wss:"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: false,
   }));
@@ -104,7 +129,6 @@ async function start() {
     console.log(`[Miotify] Server running on http://localhost:${config.port}`);
     console.log(`[Miotify] WebSocket endpoint: ws://localhost:${config.port}/ws?token=<jwt>`);
     console.log(`[Miotify] Gotify-compatible API: POST /message`);
-    console.log(`[Miotify] Default admin: ${config.defaultAdminUser} / ${config.defaultAdminPass}`);
   });
 }
 

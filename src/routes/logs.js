@@ -1,10 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/logs', authMiddleware, (req, res) => {
+router.get('/logs', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const level = req.query.level || null;
     const category = req.query.category || null;
@@ -21,11 +21,8 @@ router.get('/logs', authMiddleware, (req, res) => {
   }
 });
 
-router.delete('/logs', authMiddleware, (req, res) => {
+router.delete('/logs', authMiddleware, adminMiddleware, (req, res) => {
   try {
-    if (!req.user.admin) {
-      return res.status(403).json({ error: '需要管理员权限' });
-    }
     const deleted = db.clearLogs();
     db.addLog({
       level: 'info',
@@ -43,7 +40,7 @@ router.delete('/logs', authMiddleware, (req, res) => {
   }
 });
 
-router.get('/logs/stats', authMiddleware, (req, res) => {
+router.get('/logs/stats', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const levelStats = db.queryAll(
       "SELECT level, COUNT(*) as cnt FROM logs GROUP BY level"

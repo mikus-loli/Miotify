@@ -147,12 +147,24 @@ function save() {
 async function ensureAdmin() {
   const adminRows = queryAll('SELECT id FROM users WHERE admin = 1');
   if (adminRows.length > 0) {
-    return;
+    return { created: false };
   }
   const bcrypt = require('bcryptjs');
-  const hash = await bcrypt.hash(config.defaultAdminPass, 10);
-  run('INSERT INTO users (name, pass, admin) VALUES (?, ?, 1)', [config.defaultAdminUser, hash]);
+  const adminUser = config.defaultAdminUser;
+  const adminPass = process.env.DEFAULT_ADMIN_PASS || generateRandomPassword(16);
+  const hash = await bcrypt.hash(adminPass, 10);
+  run('INSERT INTO users (name, pass, admin) VALUES (?, ?, 1)', [adminUser, hash]);
   save();
+  return { created: true, user: adminUser, pass: adminPass };
+}
+
+function generateRandomPassword(length) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
 }
 
 function migrate() {

@@ -14,6 +14,21 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// 隐藏 token，只显示前 8 个字符
+function maskToken(token) {
+  if (!token || token.length <= 8) return token;
+  return token.substring(0, 8) + '...' + token.substring(token.length - 4);
+}
+
+// 格式化应用响应，隐藏 token（创建时除外）
+function formatAppResponse(app, showFullToken = false) {
+  if (!app) return null;
+  return {
+    ...app,
+    token: showFullToken ? app.token : maskToken(app.token),
+  };
+}
+
 router.post('/application', authMiddleware, (req, res, next) => {
   try {
     const { name, description } = req.body;
@@ -28,7 +43,8 @@ router.post('/application', authMiddleware, (req, res, next) => {
       req.user.id,
     ]);
     const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE token = ?', [token]);
-    res.status(201).json(app);
+    // 创建时返回完整 token（仅此一次）
+    res.status(201).json(formatAppResponse(app, true));
   } catch (err) {
     next(err);
   }
@@ -37,7 +53,7 @@ router.post('/application', authMiddleware, (req, res, next) => {
 router.get('/application', authMiddleware, (req, res, next) => {
   try {
     const apps = db.queryAll('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE user_id = ?', [req.user.id]);
-    res.json(apps);
+    res.json(apps.map(app => formatAppResponse(app, false)));
   } catch (err) {
     next(err);
   }
@@ -50,7 +66,7 @@ router.get('/application/:id', authMiddleware, (req, res, next) => {
     if (!app) {
       throw new AppError('application not found', 404);
     }
-    res.json(app);
+    res.json(formatAppResponse(app, false));
   } catch (err) {
     next(err);
   }
@@ -74,11 +90,50 @@ router.put('/application/:id', authMiddleware, (req, res, next) => {
       db.run('UPDATE applications SET image = ? WHERE id = ?', [image, id]);
     }
     const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ?', [id]);
-    res.json(app);
+    res.json(formatAppResponse(app, false));
   } catch (err) {
     next(err);
   }
 });
+
+// 验证文件 magic bytes（文件头）以确保是真实图片
+function validateImageBuffer(buffer, declaredExt) {
+  const magicNumbers = {
+    png: [0x89, 0x50, 0x4E, 0x47], // PNG: ‰PNG
+    jpg: [0xFF, 0xD8, 0xFF],       // JPEG: ÿØÿ
+    jpeg: [0xFF, 0xD8, 0xFF],
+    gif: [0x47, 0x49, 0x46],       // GIF: GIF
+    webp: [0x52, 0x49, 0x46, 0x46], // WebP: RIFF (check further for WEBP)
+  };
+
+  // SVG 是文本格式，无法通过 magic bytes 验证
+  if (declaredExt === 'svg') {
+    const content = buffer.toString('utf8').substring(0, 100).toLowerCase();
+    if (!content.includes('<svg') && !content.includes('<?xml')) {
+      return false;
+    }
+    return true;
+  }
+
+  const expectedMagic = magicNumbers[declaredExt];
+  if (!expectedMagic) return false;
+
+  for (let i = 0; i < expectedMagic.length; i++) {
+    if (buffer[i] !== expectedMagic[i]) {
+      return false;
+    }
+  }
+
+  // WebP 需要额外检查
+  if (declaredExt === 'webp') {
+    const webpMarker = buffer.slice(8, 12).toString('ascii');
+    if (webpMarker !== 'WEBP') {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 router.post('/application/:id/image', authMiddleware, (req, res, next) => {
   try {
@@ -106,23 +161,33 @@ router.post('/application/:id/image', authMiddleware, (req, res, next) => {
     const chunks = [];
     req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', () => {
-      const buffer = Buffer.concat(chunks);
-      if (buffer.length > 2 * 1024 * 1024) {
-        throw new AppError('image size exceeds 2MB limit', 400);
-      }
-      fs.writeFileSync(filepath, buffer);
-      
-      if (existing.image) {
-        const oldPath = path.join(uploadDir, path.basename(existing.image));
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
+      try {
+        const buffer = Buffer.concat(chunks);
+        if (buffer.length > 2 * 1024 * 1024) {
+          throw new AppError('image size exceeds 2MB limit', 400);
         }
-      }
 
-      const imageUrl = `/uploads/${filename}`;
-      db.run('UPDATE applications SET image = ? WHERE id = ?', [imageUrl, id]);
-      const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ?', [id]);
-      res.json(app);
+        // 验证文件内容是否匹配声明的类型
+        if (!validateImageBuffer(buffer, fileExt)) {
+          throw new AppError('file content does not match declared image type', 400);
+        }
+
+        fs.writeFileSync(filepath, buffer);
+
+        if (existing.image) {
+          const oldPath = path.join(uploadDir, path.basename(existing.image));
+          if (fs.existsSync(oldPath)) {
+            fs.unlinkSync(oldPath);
+          }
+        }
+
+        const imageUrl = `/uploads/${filename}`;
+        db.run('UPDATE applications SET image = ? WHERE id = ?', [imageUrl, id]);
+        const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ?', [id]);
+        res.json(formatAppResponse(app, false));
+      } catch (err) {
+        next(err);
+      }
     });
     req.on('error', (err) => next(err));
   } catch (err) {
@@ -145,7 +210,7 @@ router.delete('/application/:id/image', authMiddleware, (req, res, next) => {
       db.run('UPDATE applications SET image = ? WHERE id = ?', ['', id]);
     }
     const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ?', [id]);
-    res.json(app);
+    res.json(formatAppResponse(app, false));
   } catch (err) {
     next(err);
   }

@@ -289,12 +289,18 @@ router.delete('/message/:id', gotifyTokenMiddleware, requireClientToken, (req, r
   }
 });
 
+// 隐藏 token，只显示前 8 个字符
+function maskToken(token) {
+  if (!token || token.length <= 12) return token;
+  return token.substring(0, 8) + '...' + token.substring(token.length - 4);
+}
+
 router.get('/application', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const apps = db.queryAll('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE user_id = ?', [req.user.id]);
     res.json(apps.map(app => ({
       id: app.id,
-      token: app.token,
+      token: maskToken(app.token),
       name: app.name,
       description: app.description,
       image: app.image || '',
@@ -325,6 +331,7 @@ router.post('/application', gotifyTokenMiddleware, requireClientToken, (req, res
     ]);
     const app = db.queryOne('SELECT id, token, name, description, image FROM applications WHERE token = ?', [token]);
     console.log(`[Gotify] Application created: ${name} by user ${req.user.name}`);
+    // 创建时返回完整 token（仅此一次）
     res.status(200).json({
       id: app.id,
       token: app.token,
@@ -355,7 +362,7 @@ router.put('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, 
     const app = db.queryOne('SELECT id, token, name, description, image FROM applications WHERE id = ?', [id]);
     res.json({
       id: app.id,
-      token: app.token,
+      token: maskToken(app.token),
       name: app.name,
       description: app.description,
       image: app.image || '',
