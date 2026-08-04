@@ -36,7 +36,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-repo/miotify.git
+git clone https://github.com/mikus-loli/Miotify.git
 cd miotify
 
 # 安装依赖
@@ -62,7 +62,7 @@ docker run -d \
   --name miotify \
   -p 8080:8080 \
   -v miotify-data:/app/data \
-  ghcr.io/your-repo/miotify:latest
+  ghcr.io/mikus-loli/Miotify:latest
 ```
 
 > 首次启动时，JWT 密钥会自动生成并显示在日志中。查看日志：`docker logs miotify`（首次启动时注意保存显示的 JWT Secret）
@@ -310,8 +310,7 @@ curl -H "Authorization: Bearer <APP_TOKEN>" ...
 plugins/
 └── available/
     ├── email-forwarder.js    # 邮件转发插件
-    ├── napcat-forwarder.js   # NapCat QQ转发插件
-    └── message-logger.js     # 消息日志插件
+    └── napcat-forwarder.js   # NapCat QQ转发插件
 ```
 
 ### 插件开发
@@ -396,7 +395,7 @@ module.exports = {
 ```yaml
 services:
   miotify:
-    image: ghcr.io/your-repo/miotify:latest
+    image: ghcr.io/mikus-loli/Miotify:latest
     container_name: miotify
     restart: unless-stopped
     ports:

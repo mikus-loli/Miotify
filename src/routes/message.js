@@ -80,28 +80,47 @@ router.get('/message', authMiddleware, (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
     const since = req.query.since ? parseInt(req.query.since, 10) : 0;
+    const idCursor = req.query.id ? parseInt(req.query.id, 10) : 0;
     const appid = req.query.appid ? parseInt(req.query.appid, 10) : null;
 
     let sql;
     let params;
+    // Gotify 官方语义：
+    //   since = 返回 id 大于 since 的消息（增量拉取新消息）
+    //   id    = 返回 id 小于 id 的消息（向后翻页旧消息）
+    let cursorClause = '';
+    if (idCursor > 0) {
+      cursorClause = ' AND id < ?';
+    } else if (since > 0) {
+      cursorClause = ' AND id > ?';
+    }
     if (appid) {
       const app = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [appid, req.user.id]);
       if (!app) {
         throw new AppError('应用不存在', 404);
       }
-      sql = 'SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid = ? AND id > ? ORDER BY id DESC LIMIT ?';
-      params = [appid, since, limit];
+      sql = `SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid = ?${cursorClause} ORDER BY id DESC LIMIT ?`;
+      params = [appid];
+      if (idCursor > 0) params.push(idCursor);
+      else if (since > 0) params.push(since);
+      params.push(limit);
     } else {
       const appIds = db.queryAll('SELECT id FROM applications WHERE user_id = ?', [req.user.id]).map(a => a.id);
       if (appIds.length === 0) {
         return res.json({ messages: [], paging: { next: null, limit, since } });
       }
       const placeholders = appIds.map(() => '?').join(',');
-      sql = `SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid IN (${placeholders}) AND id > ? ORDER BY id DESC LIMIT ?`;
-      params = [...appIds, since, limit];
+      sql = `SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid IN (${placeholders})${cursorClause} ORDER BY id DESC LIMIT ?`;
+      params = [...appIds];
+      if (idCursor > 0) params.push(idCursor);
+      else if (since > 0) params.push(since);
+      params.push(limit);
     }
     const messages = db.queryAll(sql, params);
-    const nextSince = messages.length > 0 ? messages[messages.length - 1].id : null;
+    // 增量拉取用最大 id 作为下一次游标；向后翻页用最小 id
+    const nextSince = messages.length > 0
+      ? (idCursor > 0 ? messages[messages.length - 1].id : messages[0].id)
+      : null;
     res.json({ messages, paging: { next: nextSince, limit, since } });
   } catch (err) {
     next(err);

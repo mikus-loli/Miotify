@@ -4,7 +4,7 @@
   "description": "Real-time message push server with web UI",
   "main": "src/index.js",
   "scripts": {
-    "build": "cd web && npm install && npm run build",
+    "build": "cd web && npm ci && npm run build",
     "start": "node src/index.js",
     "dev:server": "node --watch src/index.js",
     "dev:web": "cd web && npm run dev",

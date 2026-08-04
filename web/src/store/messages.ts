@@ -56,7 +56,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       if (current.some((m) => m.id === msg.id)) return;
       set({ messages: [msg, ...current] });
     };
-    wsManager.onMessage(handler);
-    return () => wsManager.onMessage(() => {});
+    // onMessage 返回取消订阅函数，避免组件卸载后覆盖其他订阅者的 handler
+    return wsManager.onMessage(handler);
   },
 }));
