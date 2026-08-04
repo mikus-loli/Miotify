@@ -22,7 +22,8 @@ describe('useAuthStore', () => {
 
   it('should set error on login failure', async () => {
     const state = useAuthStore.getState();
-    await state.login({ name: 'invalid', pass: 'invalid' });
+    // login 失败时抛出异常，测试需捕获
+    await expect(state.login({ name: 'invalid', pass: 'invalid' })).rejects.toThrow();
     const updated = useAuthStore.getState();
     expect(updated.error).toBeTruthy();
     expect(updated.token).toBeNull();

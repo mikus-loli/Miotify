@@ -8,7 +8,7 @@ const { AppError } = require('../middleware/error');
 
 const router = express.Router();
 
-router.post('/login', (req, res, next) => {
+router.post('/login', async (req, res, next) => {
   try {
     const { name, pass } = req.body;
     if (!name || !pass) {
@@ -25,7 +25,7 @@ router.post('/login', (req, res, next) => {
       });
       throw new AppError('用户名或密码错误', 401);
     }
-    const valid = bcrypt.compareSync(pass, user.pass);
+    const valid = await bcrypt.compare(pass, user.pass);
     if (!valid) {
       db.addLog({
         level: 'warn',
@@ -56,7 +56,7 @@ router.post('/login', (req, res, next) => {
   }
 });
 
-router.post('/user', authMiddleware, adminMiddleware, (req, res, next) => {
+router.post('/user', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
     const { name, pass, admin } = req.body;
     if (!name || !pass) {
@@ -66,7 +66,7 @@ router.post('/user', authMiddleware, adminMiddleware, (req, res, next) => {
     if (existing) {
       throw new AppError('用户名已存在', 409);
     }
-    const hash = bcrypt.hashSync(pass, 10);
+    const hash = await bcrypt.hash(pass, 10);
     db.run('INSERT INTO users (name, pass, admin) VALUES (?, ?, ?)', [name, hash, admin ? 1 : 0]);
     const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE name = ?', [name]);
     db.addLog({
@@ -135,7 +135,7 @@ router.put('/user/:id', authMiddleware, (req, res, next) => {
   }
 });
 
-router.put('/user/:id/password', authMiddleware, (req, res, next) => {
+router.put('/user/:id/password', authMiddleware, async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id !== req.user.id && !req.user.admin) {
@@ -149,7 +149,7 @@ router.put('/user/:id/password', authMiddleware, (req, res, next) => {
     if (!pass) {
       throw new AppError('请输入密码', 400);
     }
-    const hash = bcrypt.hashSync(pass, 10);
+    const hash = await bcrypt.hash(pass, 10);
     db.run('UPDATE users SET pass = ? WHERE id = ?', [hash, id]);
     db.addLog({
       level: 'info',

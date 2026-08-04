@@ -25,7 +25,9 @@ async function start() {
 
   const { secret, generated } = db.getOrGenerateJwtSecret();
   config.setJwtSecret(secret);
-  if (generated && process.env.NODE_ENV !== 'production') {
+  if (generated) {
+    // 生产环境（Docker）也打印首次生成的密钥，README 承诺可在 docker logs 中查看；
+    // 仅在首次生成时输出，重启复用数据库中的密钥不会再打印。
     console.log('');
     console.log('========================================');
     console.log('[IMPORTANT] JWT Secret Generated:');

@@ -1,14 +1,28 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const config = require('../config');
 const pluginManager = require('../plugins/manager');
 const wsManager = require('../websocket');
 const { AppError } = require('../middleware/error');
-const { maskToken } = require('../utils/security');
 
 const router = express.Router();
 
 const GOTIFY_VERSION = '2.9.1';
+
+// Gotify 兼容端点同样受限流保护（青龙等客户端发送消息的入口）
+const gotifyLimiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too Many Requests',
+    errorCode: 429,
+    errorDescription: 'Too many requests, please try again later',
+  },
+});
+router.use(gotifyLimiter);
 
 router.use((req, res, next) => {
   console.log(`[Gotify] ${req.method} ${req.path}`);
@@ -101,7 +115,8 @@ function formatMessage(msg) {
     title: msg.title || '',
     priority: msg.priority || 0,
     extras: extras,
-    date: msg.created_at ? msg.created_at.replace(' ', 'T') + '+08:00' : new Date().toISOString(),
+    // SQLite datetime('now') 存的是 UTC，必须标 Z（原实现硬编码 +08:00 导致时间错 8 小时）
+    date: msg.created_at ? new Date(msg.created_at.replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString(),
   };
 }
 
@@ -192,6 +207,7 @@ router.get('/message', gotifyTokenMiddleware, requireClientToken, (req, res, nex
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
     const since = req.query.since ? parseInt(req.query.since, 10) : 0;
+    const idCursor = req.query.id ? parseInt(req.query.id, 10) : 0;
 
     const appIds = db.queryAll('SELECT id FROM applications WHERE user_id = ?', [req.user.id]).map(a => a.id);
     if (appIds.length === 0) {
@@ -202,8 +218,12 @@ router.get('/message', gotifyTokenMiddleware, requireClientToken, (req, res, nex
     let sql = `SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid IN (${placeholders})`;
     const params = [...appIds];
 
-    if (since > 0) {
+    // Gotify 官方语义：since 返回 id 大于 since 的消息（增量拉取），id 返回旧消息（向后翻页）
+    if (idCursor > 0) {
       sql += ' AND id < ?';
+      params.push(idCursor);
+    } else if (since > 0) {
+      sql += ' AND id > ?';
       params.push(since);
     }
 
@@ -211,7 +231,9 @@ router.get('/message', gotifyTokenMiddleware, requireClientToken, (req, res, nex
     params.push(limit);
 
     const messages = db.queryAll(sql, params);
-    const nextSince = messages.length > 0 ? messages[messages.length - 1].id : null;
+    const nextSince = messages.length > 0
+      ? (idCursor > 0 ? messages[messages.length - 1].id : messages[0].id)
+      : null;
 
     res.json({
       messages: messages.map(formatMessage),
@@ -293,9 +315,10 @@ router.delete('/message/:id', gotifyTokenMiddleware, requireClientToken, (req, r
 router.get('/application', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const apps = db.queryAll('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE user_id = ?', [req.user.id]);
+    // Gotify 官方 API 返回完整 token（客户端依赖此字段获取 app token），不能掩码
     res.json(apps.map(app => ({
       id: app.id,
-      token: maskToken(app.token),
+      token: app.token,
       name: app.name,
       description: app.description,
       image: app.image || '',
@@ -357,7 +380,7 @@ router.put('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, 
     const app = db.queryOne('SELECT id, token, name, description, image FROM applications WHERE id = ?', [id]);
     res.json({
       id: app.id,
-      token: maskToken(app.token),
+      token: app.token,
       name: app.name,
       description: app.description,
       image: app.image || '',
