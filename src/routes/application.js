@@ -92,15 +92,6 @@ function validateImageBuffer(buffer, declaredExt) {
     webp: [0x52, 0x49, 0x46, 0x46], // WebP: RIFF (check further for WEBP)
   };
 
-  // SVG 是文本格式，无法通过 magic bytes 验证
-  if (declaredExt === 'svg') {
-    const content = buffer.toString('utf8').substring(0, 100).toLowerCase();
-    if (!content.includes('<svg') && !content.includes('<?xml')) {
-      return false;
-    }
-    return true;
-  }
-
   const expectedMagic = magicNumbers[declaredExt];
   if (!expectedMagic) return false;
 
@@ -135,12 +126,13 @@ router.post('/application/:id/image', authMiddleware, (req, res, next) => {
     }
 
     const ext = contentType.split('/')[1] || 'png';
-    const validExts = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'svg+xml'];
+    // 注意：不允许 svg+xml —— SVG 可内嵌 <script>，直接访问 /uploads/xxx.svg 会执行脚本（存储型 XSS）
+    const validExts = ['png', 'jpeg', 'jpg', 'gif', 'webp'];
     if (!validExts.includes(ext)) {
       throw new AppError('unsupported image type', 400);
     }
 
-    const fileExt = ext === 'svg+xml' ? 'svg' : ext;
+    const fileExt = ext;
     const filename = `${uuidv4()}.${fileExt}`;
     const filepath = path.join(uploadDir, filename);
 

@@ -144,6 +144,41 @@ function save() {
   fs.writeFileSync(config.dbPath, buf);
 }
 
+// 防抖保存：避免每次写操作都全量导出数据库文件。
+// sql.js 是内存数据库，export() 会序列化整个库，高频写入时
+// 每条消息触发 2-3 次全量写盘会阻塞事件循环且磁盘 IO 巨大。
+let saveTimer = null;
+const SAVE_DEBOUNCE_MS = 500;
+
+function scheduleSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+  }
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    save();
+  }, SAVE_DEBOUNCE_MS);
+}
+
+function flushSave() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  save();
+}
+
+// 进程退出前确保内存数据落盘
+process.on('beforeExit', flushSave);
+process.on('SIGINT', () => {
+  flushSave();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  flushSave();
+  process.exit(0);
+});
+
 async function ensureAdmin() {
   const adminRows = queryAll('SELECT id FROM users WHERE admin = 1');
   if (adminRows.length > 0) {
@@ -151,20 +186,12 @@ async function ensureAdmin() {
   }
   const bcrypt = require('bcryptjs');
   const adminUser = config.defaultAdminUser;
-  const adminPass = process.env.DEFAULT_ADMIN_PASS || generateRandomPassword(16);
+  // 与 config.js / README 保持一致：默认 admin/admin，可用环境变量覆盖
+  const adminPass = config.defaultAdminPass;
   const hash = await bcrypt.hash(adminPass, 10);
   run('INSERT INTO users (name, pass, admin) VALUES (?, ?, 1)', [adminUser, hash]);
   save();
   return { created: true, user: adminUser, pass: adminPass };
-}
-
-function generateRandomPassword(length) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
 }
 
 function migrate() {
@@ -179,7 +206,7 @@ function migrate() {
 
 function run(sql, params) {
   db.run(sql, params);
-  save();
+  scheduleSave();
   return db.getRowsModified();
 }
 
@@ -258,4 +285,4 @@ function clearLogs() {
   return result;
 }
 
-module.exports = { loadDb, run, queryAll, queryOne, getDb, save, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs, ensureAdmin };
+module.exports = { loadDb, run, queryAll, queryOne, getDb, save, flushSave, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs, ensureAdmin };

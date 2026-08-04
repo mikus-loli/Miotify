@@ -5,7 +5,7 @@ type MessageHandler = (msg: Message) => void;
 class WebSocketManager {
   private ws: WebSocket | null = null;
   private token: string | null = null;
-  private handler: MessageHandler | null = null;
+  private handlers = new Set<MessageHandler>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
@@ -29,8 +29,8 @@ class WebSocketManager {
     this.ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data);
-        if (parsed.type === 'message' && this.handler) {
-          this.handler(parsed.data as Message);
+        if (parsed.type === 'message') {
+          this.handlers.forEach((handler) => handler(parsed.data as Message));
         }
       } catch {
         // ignore malformed messages
@@ -66,8 +66,9 @@ class WebSocketManager {
     }
   }
 
-  onMessage(handler: MessageHandler) {
-    this.handler = handler;
+  onMessage(handler: MessageHandler): () => void {
+    this.handlers.add(handler);
+    return () => this.handlers.delete(handler);
   }
 
   get isConnected() {

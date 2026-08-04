@@ -12,7 +12,7 @@ services:
       - NODE_ENV=production
       - PORT=8080
       - TZ=${TZ:-Asia/Shanghai}
-      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-secure-random-string}
+      - JWT_SECRET=${JWT_SECRET:-}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
       - DEFAULT_ADMIN_PASS=${DEFAULT_ADMIN_PASS:-admin}
