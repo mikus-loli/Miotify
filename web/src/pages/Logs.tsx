@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/api/client';
 import type { Log, LogStatsResponse } from '@/types';
@@ -57,7 +57,7 @@ export default function LogsPage() {
   const [page, setPage] = useState(0);
   const limit = 50;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
@@ -73,11 +73,11 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, level, category, page]);
 
   useEffect(() => {
     fetchData();
-  }, [token, level, category, page]);
+  }, [fetchData]);
 
   const handleClearLogs = async () => {
     if (!token || !user?.admin) return;

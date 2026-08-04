@@ -539,5 +539,4 @@ export default function MobileMenu() {
   );
 }
 
-export { menuStructure };
 export type { MenuItem, MenuMode };
