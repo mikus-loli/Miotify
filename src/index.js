@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet');
 const cors = require('cors');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const config = require('./config');
 const db = require('./db');
 const wsManager = require('./websocket');
@@ -115,14 +115,14 @@ async function start() {
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' },
-    // CDN 后面多层代理时，显式取 X-Forwarded-For 最右一层（真实客户端 IP）
+    // CDN 后面多层代理时，显式取 X-Forwarded-For 最右一层（真实客户端 IP），
+    // 并交给 ipKeyGenerator 规范化（IPv6 /64 聚合，防绕过）
     keyGenerator: (req) => {
       const xff = req.headers['x-forwarded-for'];
-      if (xff) {
-        const ips = String(xff).split(',').map(s => s.trim()).filter(Boolean);
-        return ips[ips.length - 1] || req.ip || 'unknown';
-      }
-      return req.ip || 'unknown';
+      const ip = xff
+        ? String(xff).split(',').map(s => s.trim()).filter(Boolean).pop()
+        : req.ip;
+      return ipKeyGenerator(ip || 'unknown');
     },
   });
   app.use('/api', limiter);
