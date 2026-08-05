@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../db');
 const config = require('../config');
+const pluginManager = require('../plugins/manager');
 const { authMiddleware } = require('../middleware/auth');
 const { AppError } = require('../middleware/error');
 const { formatAppResponse } = require('../utils/security');
@@ -30,6 +31,8 @@ router.post('/application', authMiddleware, (req, res, next) => {
     ]);
     const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE token = ?', [token]);
     // 创建时返回完整 token（仅此一次）
+    // 触发 app:onCreate hook（不阻塞响应）
+    pluginManager.executeHook('app:onCreate', { id: app.id, name: app.name, user_id: app.user_id }).catch(() => {});
     res.status(201).json(formatAppResponse(app, true));
   } catch (err) {
     next(err);
@@ -197,7 +200,7 @@ router.delete('/application/:id/image', authMiddleware, (req, res, next) => {
 router.delete('/application/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id, name, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
     if (!existing) {
       throw new AppError('application not found', 404);
     }
@@ -208,6 +211,8 @@ router.delete('/application/:id', authMiddleware, (req, res, next) => {
       }
     }
     db.run('DELETE FROM applications WHERE id = ?', [id]);
+    // 触发 app:onDelete hook（不阻塞响应）
+    pluginManager.executeHook('app:onDelete', { id, name: existing.name }).catch(() => {});
     res.json({ message: 'application deleted' });
   } catch (err) {
     next(err);

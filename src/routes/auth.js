@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const config = require('../config');
+const pluginManager = require('../plugins/manager');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { AppError } = require('../middleware/error');
 
@@ -78,6 +79,8 @@ router.post('/user', authMiddleware, adminMiddleware, async (req, res, next) => 
       userName: req.user.name,
       details: { newUserId: user.id, newUser: name, admin: !!admin },
     });
+    // 触发 user:onCreate hook（不阻塞响应）
+    pluginManager.executeHook('user:onCreate', { id: user.id, name: user.name, admin: !!user.admin }).catch(() => {});
     res.status(201).json(user);
   } catch (err) {
     next(err);
@@ -186,6 +189,8 @@ router.delete('/user/:id', authMiddleware, adminMiddleware, (req, res, next) => 
       userName: req.user.name,
       details: { deletedUserId: id, deletedUserName: user.name },
     });
+    // 触发 user:onDelete hook（不阻塞响应）
+    pluginManager.executeHook('user:onDelete', { id, name: user.name }).catch(() => {});
     res.json({ message: '用户已删除' });
   } catch (err) {
     next(err);

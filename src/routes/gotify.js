@@ -235,6 +235,11 @@ router.get('/message', gotifyTokenMiddleware, requireClientToken, (req, res, nex
       ? (idCursor > 0 ? messages[messages.length - 1].id : messages[0].id)
       : null;
 
+    // 触发 message:onReceive（Gotify 客户端增量拉取到消息），不阻塞响应
+    for (const msg of messages) {
+      pluginManager.executeHook('message:onReceive', msg).catch(() => {});
+    }
+
     res.json({
       messages: messages.map(formatMessage),
       paging: { next: nextSince, limit, since },
@@ -350,6 +355,8 @@ router.post('/application', gotifyTokenMiddleware, requireClientToken, (req, res
     const app = db.queryOne('SELECT id, token, name, description, image FROM applications WHERE token = ?', [token]);
     console.log(`[Gotify] Application created: ${name} by user ${req.user.name}`);
     // 创建时返回完整 token（仅此一次）
+    // 触发 app:onCreate hook（不阻塞响应）
+    pluginManager.executeHook('app:onCreate', { id: app.id, name: app.name, user_id: req.user.id }).catch(() => {});
     res.status(200).json({
       id: app.id,
       token: app.token,
@@ -394,7 +401,7 @@ router.put('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, 
 router.delete('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id, name FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
     if (!existing) {
       return res.status(404).json({
         error: 'Not Found',
@@ -405,6 +412,8 @@ router.delete('/application/:id', gotifyTokenMiddleware, requireClientToken, (re
     db.run('DELETE FROM messages WHERE appid = ?', [id]);
     db.run('DELETE FROM applications WHERE id = ?', [id]);
     console.log(`[Gotify] Application deleted: id=${id} by user ${req.user.name}`);
+    // 触发 app:onDelete hook（不阻塞响应）
+    pluginManager.executeHook('app:onDelete', { id, name: existing.name }).catch(() => {});
     res.json({});
   } catch (err) {
     next(err);

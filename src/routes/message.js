@@ -121,6 +121,10 @@ router.get('/message', authMiddleware, (req, res, next) => {
     const nextSince = messages.length > 0
       ? (idCursor > 0 ? messages[messages.length - 1].id : messages[0].id)
       : null;
+    // 触发 message:onReceive（客户端拉取到消息），插件可在此做实时处理（不阻塞响应）
+    for (const msg of messages) {
+      pluginManager.executeHook('message:onReceive', msg).catch(() => {});
+    }
     res.json({ messages, paging: { next: nextSince, limit, since } });
   } catch (err) {
     next(err);
