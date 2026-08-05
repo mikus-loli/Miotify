@@ -409,8 +409,13 @@ export default function PluginsPage() {
           {[
             { hook: 'message:beforeSend', desc: '消息发送前（可修改或拒绝）' },
             { hook: 'message:afterSend', desc: '消息发送后' },
+            { hook: 'message:onReceive', desc: '客户端拉取到消息时' },
             { hook: 'user:onCreate', desc: '用户创建时' },
+            { hook: 'user:onDelete', desc: '用户删除时' },
             { hook: 'app:onCreate', desc: '应用创建时' },
+            { hook: 'app:onDelete', desc: '应用删除时' },
+            { hook: 'plugin:onEnable', desc: '插件启用时' },
+            { hook: 'plugin:onDisable', desc: '插件停用时' },
           ].map((item) => (
             <div key={item.hook} style={{ display: 'flex', gap: 12, fontSize: 13 }}>
               <code style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{item.hook}</code>

@@ -128,6 +128,8 @@ async function loadDb() {
     db = new SQL.Database();
   }
   db.run(SQL_INIT);
+  // 启用外键约束（sql.js 默认关闭；开启后 ON DELETE CASCADE 才真正生效）
+  db.run('PRAGMA foreign_keys = ON');
   migrate();
   await ensureAdmin();
   return db;
