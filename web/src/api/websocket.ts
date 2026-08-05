@@ -22,7 +22,8 @@ class WebSocketManager {
     this.disconnect();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    this.ws = new WebSocket(`${protocol}//${host}/ws?token=${this.token}`);
+    // token 通过 Sec-WebSocket-Protocol 子协议传递，避免出现在 URL query（防日志/历史泄露）
+    this.ws = new WebSocket(`${protocol}//${host}/ws`, ['miotify', this.token]);
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
     };

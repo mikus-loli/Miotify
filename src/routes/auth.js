@@ -1,6 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const config = require('../config');
 const pluginManager = require('../plugins/manager');
@@ -9,7 +12,24 @@ const { AppError } = require('../middleware/error');
 
 const router = express.Router();
 
-router.post('/login', async (req, res, next) => {
+// 登录端点独立限流：防暴力破解，同时不耗尽全 API 配额
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请稍后再试' },
+  keyGenerator: (req) => {
+    const xff = req.headers['x-forwarded-for'];
+    if (xff) {
+      const ips = String(xff).split(',').map(s => s.trim()).filter(Boolean);
+      return ips[ips.length - 1] || req.ip || 'unknown';
+    }
+    return req.ip || 'unknown';
+  },
+});
+
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { name, pass } = req.body;
     if (!name || !pass) {
@@ -178,6 +198,22 @@ router.delete('/user/:id', authMiddleware, adminMiddleware, (req, res, next) => 
     const user = db.queryOne('SELECT id, name FROM users WHERE id = ?', [id]);
     if (!user) {
       throw new AppError('用户不存在', 404);
+    }
+    // 删除用户前清理其应用的头像文件，避免孤儿图片堆积
+    const uploadDir = path.join(path.dirname(config.dbPath), 'uploads');
+    const appImages = db.queryAll('SELECT image FROM applications WHERE user_id = ?', [id])
+      .map(a => a.image)
+      .filter(Boolean);
+    for (const imageUrl of appImages) {
+      const filename = path.basename(imageUrl);
+      const filepath = path.join(uploadDir, filename);
+      try {
+        if (fs.existsSync(filepath)) {
+          fs.unlinkSync(filepath);
+        }
+      } catch (err) {
+        console.warn(`[Auth] Failed to delete image ${filename}:`, err.message);
+      }
     }
     db.run('DELETE FROM users WHERE id = ?', [id]);
     db.addLog({

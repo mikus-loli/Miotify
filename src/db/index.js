@@ -184,6 +184,20 @@ process.on('SIGTERM', () => {
 async function ensureAdmin() {
   const adminRows = queryAll('SELECT id FROM users WHERE admin = 1');
   if (adminRows.length > 0) {
+    // 检测管理员是否仍在使用默认密码（安全提醒）
+    const admins = queryAll('SELECT id, name, pass FROM users WHERE admin = 1');
+    const bcrypt = require('bcryptjs');
+    for (const admin of admins) {
+      const isDefault = await bcrypt.compare(config.defaultAdminPass, admin.pass);
+      if (isDefault && config.defaultAdminPass !== '') {
+        console.warn('');
+        console.warn('========================================');
+        console.warn(`[SECURITY] Admin "${admin.name}" is still using the DEFAULT password!`);
+        console.warn(`Please change it immediately! (${config.defaultAdminUser}/${config.defaultAdminPass})`);
+        console.warn('========================================');
+        console.warn('');
+      }
+    }
     return { created: false };
   }
   const bcrypt = require('bcryptjs');
@@ -287,4 +301,30 @@ function clearLogs() {
   return result;
 }
 
-module.exports = { loadDb, run, queryAll, queryOne, getDb, save, flushSave, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs, ensureAdmin };
+/**
+ * 日志自动轮转：防止 logs 表无限增长导致 DB 文件膨胀、
+ * 每次全量写盘越来越慢（sql.js 每次 save 序列化整个库）。
+ * 按条数上限 + 天数上限双重清理，两个都 0 时跳过。
+ */
+function rotateLogs() {
+  const config = require('../config');
+  const countLimit = config.logRetentionCount;
+  const dayLimit = config.logRetentionDays;
+
+  if (countLimit > 0) {
+    // 只保留最新的 N 条：取 DESC 第 N+1 条的 id（跳过最新 N 条），删除它及更旧的
+    const row = queryOne(
+      `SELECT id FROM logs ORDER BY id DESC LIMIT 1 OFFSET ?`,
+      [countLimit]
+    );
+    if (row) {
+      run('DELETE FROM logs WHERE id <= ?', [row.id]);
+    }
+  }
+
+  if (dayLimit > 0) {
+    run("DELETE FROM logs WHERE date(created_at) < date('now', ?)", [`-${dayLimit} days`]);
+  }
+}
+
+module.exports = { loadDb, run, queryAll, queryOne, getDb, save, flushSave, getOrGenerateJwtSecret, getSetting, setSetting, addLog, getLogs, getLogCount, clearLogs, rotateLogs, ensureAdmin };

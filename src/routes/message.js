@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const config = require('../config');
-const { authMiddleware, appTokenMiddleware, optionalAuth } = require('../middleware/auth');
+const { authMiddleware, appTokenMiddleware } = require('../middleware/auth');
 const { AppError } = require('../middleware/error');
 const wsManager = require('../websocket');
 const pluginManager = require('../plugins/manager');

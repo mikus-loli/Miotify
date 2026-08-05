@@ -37,6 +37,15 @@ async function request<T>(
     opts.body = JSON.stringify(body);
   }
   const res = await fetch(`${BASE_URL}${path}`, opts);
+  // 401 统一处理：token 过期/无效时清本地登录态并跳登录页（排除 login 本身，让登录错误信息正常显示）
+  if (res.status === 401 && path !== '/login') {
+    localStorage.removeItem('miotify_token');
+    localStorage.removeItem('miotify_user');
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    throw new Error('登录已过期，请重新登录');
+  }
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error || `HTTP ${res.status}`);
