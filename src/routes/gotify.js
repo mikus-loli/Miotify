@@ -1,5 +1,5 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const db = require('../db');
 const config = require('../config');
 const pluginManager = require('../plugins/manager');
@@ -21,14 +21,13 @@ const gotifyLimiter = rateLimit({
     errorCode: 429,
     errorDescription: 'Too many requests, please try again later',
   },
-  // CDN 后面取真实客户端 IP（与 /api 限流一致）
+  // CDN 后面取真实客户端 IP（与 /api 限流一致），ipKeyGenerator 规范化 IPv6
   keyGenerator: (req) => {
     const xff = req.headers['x-forwarded-for'];
-    if (xff) {
-      const ips = String(xff).split(',').map(s => s.trim()).filter(Boolean);
-      return ips[ips.length - 1] || req.ip || 'unknown';
-    }
-    return req.ip || 'unknown';
+    const ip = xff
+      ? String(xff).split(',').map(s => s.trim()).filter(Boolean).pop()
+      : req.ip;
+    return ipKeyGenerator(ip || 'unknown');
   },
 });
 router.use(gotifyLimiter);
