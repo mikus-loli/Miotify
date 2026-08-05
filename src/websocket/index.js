@@ -13,8 +13,12 @@ class WebSocketManager {
     this.wss = new WebSocketServer({ server, path: '/ws' });
 
     this.wss.on('connection', (ws, req) => {
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      const token = url.searchParams.get('token');
+      // token 通过 Sec-WebSocket-Protocol 子协议头传递（浏览器 WebSocket 第二个参数），
+      // 不再从 URL query 读取 —— 避免 token 泄露到访问日志/浏览器历史
+      const protocolHeader = req.headers['sec-websocket-protocol'] || '';
+      const protocols = String(protocolHeader).split(',').map(s => s.trim()).filter(Boolean);
+      // 格式：["miotify", "<jwt>"]，取第二个作为 token
+      const token = protocols.length >= 2 ? protocols[protocols.length - 1] : null;
 
       if (!token) {
         ws.close(4001, 'Missing token');
