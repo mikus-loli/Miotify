@@ -57,14 +57,22 @@ jobs:
             node --check "$f" || exit 1
           done
 
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm ci
+
+      # 后端集成测试依赖 web/dist 存在（SPA fallback 回归测试：前端路由 /messages 等
+      # 应返回 index.html、API 路径应返回 JSON 404），必须先构建前端产物
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
       - name: Backend integration tests
         run: npm test
 
-      - name: Install and test frontend
+      - name: Frontend tests
         working-directory: web
-        run: |
-          npm ci
-          npm run test
+        run: npm run test
 
       - name: Lint frontend
         working-directory: web
