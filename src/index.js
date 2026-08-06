@@ -19,7 +19,7 @@ const gotifyRoutes = require('./routes/gotify');
 const statsRoutes = require('./routes/stats');
 const logsRoutes = require('./routes/logs');
 
-async function start() {
+async function createApp() {
   await db.loadDb();
   console.log('[DB] Database initialized');
   // 启动时执行一次日志轮转，防止 logs 表无限膨胀
@@ -163,17 +163,27 @@ async function start() {
   app.use(notFoundHandler);
   app.use(errorHandler);
 
+  return app;
+}
+
+async function start() {
+  const app = await createApp();
   const server = http.createServer(app);
   wsManager.attach(server);
 
   server.listen(config.port, () => {
     console.log(`[Miotify] Server running on http://localhost:${config.port}`);
-    console.log(`[Miotify] WebSocket endpoint: ws://localhost:${config.port}/ws?token=<jwt>`);
+    console.log(`[Miotify] WebSocket endpoint: ws://localhost:${config.port}/ws`);
     console.log(`[Miotify] Gotify-compatible API: POST /message`);
   });
 }
 
-start().catch((err) => {
-  console.error('[Fatal]', err);
-  process.exit(1);
-});
+// 供测试直接构建 app（不监听端口）；正常启动走 start()
+if (require.main === module) {
+  start().catch((err) => {
+    console.error('[Fatal]', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { createApp, start };

@@ -21,4 +21,6 @@ module.exports = {
   // 日志保留策略：按条数（默认 5000 条）和天数（默认 30 天）双重上限，0 表示不限制
   logRetentionCount: parseInt(process.env.LOG_RETENTION_COUNT, 10) || 5000,
   logRetentionDays: parseInt(process.env.LOG_RETENTION_DAYS, 10) || 30,
+  // 单用户 WebSocket 最大连接数（防内存 DoS），0 表示不限制
+  wsMaxConnectionsPerUser: parseInt(process.env.WS_MAX_CONNECTIONS_PER_USER, 10) || 5,
 };

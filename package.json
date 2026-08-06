@@ -6,6 +6,8 @@
   "scripts": {
     "build": "cd web && npm ci && npm run build",
     "start": "node src/index.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:server": "node --test --test-concurrency=1 test/auth.test.js test/message.test.js test/plugin.test.js",
     "dev:server": "node --watch src/index.js",
     "dev:web": "cd web && npm run dev",
     "dev": "concurrently -n server,web -c blue,green \"npm run dev:server\" \"npm run dev:web\"",
