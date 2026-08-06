@@ -29,7 +29,7 @@ async function createTestApp() {
 
   // 通过环境变量注入（config.js 顶层读取 process.env，保留完整 getter/setter）
   const prevEnv = {};
-  const envKeys = ['DB_PATH', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'DEFAULT_ADMIN_USER', 'DEFAULT_ADMIN_PASS', 'LOG_RETENTION_COUNT', 'LOG_RETENTION_DAYS', 'RATE_LIMIT_MAX', 'RATE_LIMIT_WINDOW_MS'];
+  const envKeys = ['DB_PATH', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'DEFAULT_ADMIN_USER', 'DEFAULT_ADMIN_PASS', 'LOG_RETENTION_COUNT', 'LOG_RETENTION_DAYS', 'RATE_LIMIT_MAX', 'RATE_LIMIT_WINDOW_MS', 'CORS_ORIGIN'];
   for (const k of envKeys) {
     prevEnv[k] = process.env[k];
   }

@@ -197,3 +197,57 @@ describe('回归：stats 时区统计', () => {
     assert.ok(hoursWithData.length >= 1, `24小时分布应有计数，实际 ${JSON.stringify(hoursWithData)}`);
   });
 });
+
+describe('回归：用户名 trim 与密码长度', () => {
+  test('创建带空格用户名会被 trim，trim 后登录成功', async () => {
+    const create = await api(ctx.baseUrl, 'POST', '/api/user', {
+      token: adminToken,
+      body: { name: '  trimmed_user  ', pass: 'pw-123', admin: false },
+    });
+    assert.equal(create.status, 201);
+    assert.equal(create.data.name, 'trimmed_user', '创建时用户名应被 trim');
+
+    const login = await api(ctx.baseUrl, 'POST', '/api/login', { body: { name: 'trimmed_user', pass: 'pw-123' } });
+    assert.equal(login.status, 200, 'trim 后的用户名应能登录');
+  });
+
+  test('超过 72 字符的密码被拒绝（bcrypt 截断防护）', async () => {
+    const create = await api(ctx.baseUrl, 'POST', '/api/user', {
+      token: adminToken,
+      body: { name: 'longpw', pass: 'a'.repeat(100), admin: false },
+    });
+    assert.equal(create.status, 400, '超长密码创建应 400');
+  });
+
+  test('改自己的密码后旧 token 立即失效', async () => {
+    const create = await api(ctx.baseUrl, 'POST', '/api/user', {
+      token: adminToken,
+      body: { name: 'selfpw', pass: 'old-pass', admin: false },
+    });
+    assert.equal(create.status, 201);
+    const login = await api(ctx.baseUrl, 'POST', '/api/login', { body: { name: 'selfpw', pass: 'old-pass' } });
+    const selfToken = login.data.token;
+
+    const change = await api(ctx.baseUrl, 'PUT', `/api/user/${create.data.id}/password`, {
+      token: selfToken, // 自己改自己的密码
+      body: { pass: 'new-pass' },
+    });
+    assert.equal(change.status, 200);
+
+    const after = await api(ctx.baseUrl, 'GET', '/api/application', { token: selfToken });
+    assert.equal(after.status, 401, '改自己密码后旧 token 应 401（token_version 递增）');
+  });
+});
+
+describe('回归：/api/message paging 格式', () => {
+  test('paging.next 为 URL 字符串（与 gotify 端点一致）', async () => {
+    const res = await api(ctx.baseUrl, 'GET', '/api/message?limit=1', { token: adminToken });
+    assert.equal(res.status, 200);
+    const paging = res.data.paging;
+    assert.ok(paging, 'paging 存在');
+    if (paging.next !== null) {
+      assert.equal(typeof paging.next, 'string', 'next 应为 URL 字符串');
+      assert.ok(paging.next.includes('/api/message?'), `next 应为 /api/message URL，实际 ${paging.next}`);
+    }
+  });
+});
