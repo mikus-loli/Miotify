@@ -168,10 +168,13 @@ async function createApp() {
   if (fs.existsSync(webDistPath)) {
     app.use(express.static(webDistPath, { index: false }));
     // API 路径（含未匹配的拼写错误）必须返回 JSON 404，不能被 SPA fallback 吞成 HTML 200，
-    // 否则 API 客户端（Gotify 官方 App 等）会静默拿到 index.html 解析失败
-    const API_PREFIXES = ['/api/', '/message', '/application', '/user', '/current', '/health', '/version', '/uploads/'];
+    // 否则 API 客户端（Gotify 官方 App 等）会静默拿到 index.html 解析失败。
+    // 按路径第一段精确匹配（而非 startsWith 前缀）：前缀匹配会把前端路由 /messages、/applications、
+    // /users 误判为 API 路径（'/messages'.startsWith('/message') === true）导致刷新返回 JSON 404。
+    const API_SEGMENTS = ['api', 'message', 'application', 'user', 'current', 'health', 'version', 'uploads'];
     app.get('/{*splat}', (req, res, next) => {
-      if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
+      const firstSegment = String(req.path).split('/')[1] || '';
+      if (API_SEGMENTS.includes(firstSegment)) {
         return next();
       }
       // 仅浏览器导航请求（Accept 含 text/html）返回 index.html，API 客户端不误收 HTML

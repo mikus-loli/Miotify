@@ -309,3 +309,47 @@ describe('回归：Gotify 官方单数路径与缺失端点', () => {
     assert.equal(res.status, 404);
   });
 });
+
+describe('回归：SPA 前端路由刷新不被 API 前缀误拦截', () => {
+  // 曾经的 bug：API_PREFIXES 用 startsWith 前缀匹配，'/messages'.startsWith('/message') === true，
+  // 导致 /messages、/applications、/users 刷新时返回 JSON 404 而不是 index.html
+  test('GET /messages（前端路由）返回 index.html 而非 JSON 404', async () => {
+    const res = await fetch(`${ctx.baseUrl}/messages`, { headers: { Accept: 'text/html' } });
+    assert.equal(res.status, 200, `前端路由 /messages 应 200，实际 ${res.status}`);
+    const ct = res.headers.get('content-type') || '';
+    assert.ok(ct.includes('text/html'), `前端路由 /messages 应返回 HTML，实际 ${ct}`);
+    const body = await res.text();
+    assert.ok(body.includes('<!DOCTYPE html>'), '应返回 index.html 内容');
+  });
+
+  test('GET /applications 前端路由返回 HTML', async () => {
+    const res = await fetch(`${ctx.baseUrl}/applications`, { headers: { Accept: 'text/html' } });
+    assert.equal(res.status, 200);
+    assert.ok((res.headers.get('content-type') || '').includes('text/html'));
+  });
+
+  test('GET /users 前端路由返回 HTML', async () => {
+    const res = await fetch(`${ctx.baseUrl}/users`, { headers: { Accept: 'text/html' } });
+    assert.equal(res.status, 200);
+    assert.ok((res.headers.get('content-type') || '').includes('text/html'));
+  });
+
+  test('GET /login 前端路由返回 HTML', async () => {
+    const res = await fetch(`${ctx.baseUrl}/login`, { headers: { Accept: 'text/html' } });
+    assert.equal(res.status, 200);
+    assert.ok((res.headers.get('content-type') || '').includes('text/html'));
+  });
+
+  test('API 路径仍不被 SPA 吞掉：GET /message 返回 JSON（非 HTML 200）', async () => {
+    const res = await fetch(`${ctx.baseUrl}/message`, { headers: { Accept: 'text/html' } });
+    assert.notEqual(res.status, 200, 'API 路径不应被 SPA fallback 吞成 200 HTML');
+    const ct = res.headers.get('content-type') || '';
+    assert.ok(ct.includes('application/json'), `API 路径应返回 JSON，实际 ${ct}`);
+  });
+
+  test('API 客户端 Accept 不含 text/html 时前端路由返回 JSON 404（不误收 HTML）', async () => {
+    const res = await fetch(`${ctx.baseUrl}/messages`);
+    assert.equal(res.status, 404);
+    assert.ok((res.headers.get('content-type') || '').includes('application/json'));
+  });
+});
