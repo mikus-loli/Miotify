@@ -6,6 +6,8 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY:-miotify/miotify}:latest
     container_name: miotify
     restart: unless-stopped
+    # sql.js 是纯内存数据库，限制容器内存防止极端流量下耗尽宿主机内存
+    mem_limit: 512m
     ports:
       - "8080:8080"
     environment:

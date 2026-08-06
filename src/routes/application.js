@@ -51,7 +51,8 @@ router.get('/application', authMiddleware, (req, res, next) => {
 router.get('/application/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    // admin 可查看任意应用，普通用户仅本人
+    const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ? AND (user_id = ? OR ?)', [id, req.user.id, req.user.admin ? 1 : 0]);
     if (!app) {
       throw new AppError('application not found', 404);
     }
@@ -79,7 +80,7 @@ router.get('/application/:id/token', authMiddleware, (req, res, next) => {
 router.put('/application/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id FROM applications WHERE id = ? AND (user_id = ? OR ?)', [id, req.user.id, req.user.admin ? 1 : 0]);
     if (!existing) {
       throw new AppError('application not found', 404);
     }
@@ -141,7 +142,7 @@ function validateImageBuffer(buffer, declaredExt) {
 router.post('/application/:id/image', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id, image FROM applications WHERE id = ? AND (user_id = ? OR ?)', [id, req.user.id, req.user.admin ? 1 : 0]);
     if (!existing) {
       throw new AppError('application not found', 404);
     }
@@ -220,7 +221,7 @@ router.post('/application/:id/image', authMiddleware, (req, res, next) => {
 router.delete('/application/:id/image', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id, image FROM applications WHERE id = ? AND (user_id = ? OR ?)', [id, req.user.id, req.user.admin ? 1 : 0]);
     if (!existing) {
       throw new AppError('application not found', 404);
     }
@@ -241,7 +242,7 @@ router.delete('/application/:id/image', authMiddleware, (req, res, next) => {
 router.delete('/application/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id, name, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id, name, image FROM applications WHERE id = ? AND (user_id = ? OR ?)', [id, req.user.id, req.user.admin ? 1 : 0]);
     if (!existing) {
       throw new AppError('application not found', 404);
     }

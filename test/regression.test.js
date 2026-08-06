@@ -251,3 +251,61 @@ describe('回归：/api/message paging 格式', () => {
     }
   });
 });
+
+describe('回归：Gotify 官方单数路径与缺失端点', () => {
+  test('GET /application/:id/message（官方单数）返回 JSON 而非 HTML', async () => {
+    const res = await fetch(`${ctx.baseUrl}/application/${appId}/message`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` },
+    });
+    assert.equal(res.status, 200);
+    const ct = res.headers.get('content-type') || '';
+    assert.ok(ct.includes('application/json'), `应返回 JSON，实际 ${ct}`);
+    const data = await res.json();
+    assert.ok(Array.isArray(data.messages), 'messages 应为数组');
+  });
+
+  test('DELETE /application/:id/message（官方单数）删除该应用全部消息', async () => {
+    await api(ctx.baseUrl, 'POST', '/message', { appToken, body: { message: 'to-clear-singular' } });
+    const res = await fetch(`${ctx.baseUrl}/application/${appId}/message`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${adminToken}` },
+    });
+    assert.equal(res.status, 200);
+    const list = await api(ctx.baseUrl, 'GET', `/application/${appId}/message`, { token: adminToken });
+    assert.equal(list.data.messages.length, 0, '单数路径删除后应无消息');
+  });
+
+  test('GET /application/:id（官方单应用查询）返回 JSON', async () => {
+    const res = await fetch(`${ctx.baseUrl}/application/${appId}`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` },
+    });
+    assert.equal(res.status, 200);
+    const ct = res.headers.get('content-type') || '';
+    assert.ok(ct.includes('application/json'), `应返回 JSON，实际 ${ct}`);
+    const data = await res.json();
+    assert.equal(data.id, appId);
+    assert.ok(data.token, '应包含 token');
+  });
+
+  test('GET /current/user 返回当前用户信息', async () => {
+    const res = await fetch(`${ctx.baseUrl}/current/user`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` },
+    });
+    assert.equal(res.status, 200);
+    const ct = res.headers.get('content-type') || '';
+    assert.ok(ct.includes('application/json'), `应返回 JSON，实际 ${ct}`);
+    const data = await res.json();
+    assert.equal(data.name, 'admin');
+    assert.equal(data.admin, true);
+  });
+
+  test('拼错的 API 路径返回 JSON 404 而非 HTML 200（SPA fallback 排除）', async () => {
+    // /application/999999999 是 API 前缀但不存在：应 JSON 404，不能被 SPA fallback 吞成 HTML
+    const res = await fetch(`${ctx.baseUrl}/application/999999999`, {
+      headers: { 'Authorization': `Bearer ${adminToken}`, 'Accept': 'text/html' },
+    });
+    const ct = res.headers.get('content-type') || '';
+    assert.ok(ct.includes('application/json'), `API 路径应返回 JSON，实际 ${ct}`);
+    assert.equal(res.status, 404);
+  });
+});

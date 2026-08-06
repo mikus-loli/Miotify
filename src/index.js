@@ -152,12 +152,19 @@ async function createApp() {
 
   if (fs.existsSync(webDistPath)) {
     app.use(express.static(webDistPath, { index: false }));
+    // API 路径（含未匹配的拼写错误）必须返回 JSON 404，不能被 SPA fallback 吞成 HTML 200，
+    // 否则 API 客户端（Gotify 官方 App 等）会静默拿到 index.html 解析失败
+    const API_PREFIXES = ['/api/', '/message', '/application', '/user', '/current', '/health', '/version', '/uploads/'];
     app.get('/{*splat}', (req, res, next) => {
-      if (req.accepts('html')) {
-        res.sendFile(path.join(webDistPath, 'index.html'));
-      } else {
-        next();
+      if (API_PREFIXES.some((p) => req.path.startsWith(p))) {
+        return next();
       }
+      // 仅浏览器导航请求（Accept 含 text/html）返回 index.html，API 客户端不误收 HTML
+      const accept = req.headers.accept || '';
+      if (accept.includes('text/html')) {
+        return res.sendFile(path.join(webDistPath, 'index.html'));
+      }
+      next();
     });
     console.log('[Web] Serving frontend from web/dist');
   }

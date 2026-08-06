@@ -352,6 +352,44 @@ router.get('/application', gotifyTokenMiddleware, requireClientToken, (req, res,
   }
 });
 
+router.get('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    if (!app) {
+      return res.status(404).json({
+        error: 'Not Found',
+        errorCode: 404,
+        errorDescription: 'application not found',
+      });
+    }
+    // 官方 API 返回完整 token
+    res.json({
+      id: app.id,
+      token: app.token,
+      name: app.name,
+      description: app.description,
+      image: app.image || '',
+      internal: false,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 官方端点：获取当前登录用户信息（client token）
+router.get('/current/user', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
+  try {
+    res.json({
+      id: req.user.id,
+      name: req.user.name,
+      admin: !!req.user.admin,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/application', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const { name, description } = req.body;
@@ -451,7 +489,8 @@ router.delete('/application/:id', gotifyTokenMiddleware, requireClientToken, (re
   }
 });
 
-router.get('/application/:id/messages', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
+// 官方 Gotify 路径是单数 /application/{id}/message；同时兼容 Miotify 历史复数路径
+router.get(['/application/:id/message', '/application/:id/messages'], gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const appid = parseInt(req.params.id, 10);
     const app = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [appid, req.user.id]);
@@ -489,7 +528,102 @@ router.get('/application/:id/messages', gotifyTokenMiddleware, requireClientToke
   }
 });
 
-router.delete('/application/:id/messages', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
+// 官方端点：上传应用图片（与 /api 版同一套 magic bytes + 2MB 流式限制校验）
+const { v4: uuidv4 } = require('uuid');
+const IMAGE_MAGIC = {
+  png: [0x89, 0x50, 0x4E, 0x47],
+  jpg: [0xFF, 0xD8, 0xFF],
+  jpeg: [0xFF, 0xD8, 0xFF],
+  gif: [0x47, 0x49, 0x46],
+  webp: [0x52, 0x49, 0x46, 0x46],
+};
+function validateImageMagic(buffer, ext) {
+  const magic = IMAGE_MAGIC[ext];
+  if (!magic) return false;
+  for (let i = 0; i < magic.length; i++) {
+    if (buffer[i] !== magic[i]) return false;
+  }
+  if (ext === 'webp' && buffer.slice(8, 12).toString('ascii') !== 'WEBP') return false;
+  return true;
+}
+
+router.post('/application/:id/image', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const existing = db.queryOne('SELECT id, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    if (!existing) {
+      return res.status(404).json({
+        error: 'Not Found',
+        errorCode: 404,
+        errorDescription: 'application not found',
+      });
+    }
+
+    const contentType = req.headers['content-type'] || '';
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({ error: 'Bad Request', errorCode: 400, errorDescription: 'content-type must be an image type' });
+    }
+    const ext = contentType.split('/')[1] || 'png';
+    // 不允许 svg+xml（可内嵌 <script>，存储型 XSS）
+    if (!['png', 'jpeg', 'jpg', 'gif', 'webp'].includes(ext)) {
+      return res.status(400).json({ error: 'Bad Request', errorCode: 400, errorDescription: 'unsupported image type' });
+    }
+
+    const uploadDir = path.join(path.dirname(config.dbPath), 'uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const filename = `${uuidv4()}.${ext}`;
+    const filepath = path.join(uploadDir, filename);
+
+    const chunks = [];
+    let received = 0;
+    let rejected = false;
+    const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+    req.on('data', (chunk) => {
+      if (rejected) return;
+      received += chunk.length;
+      if (received > MAX_IMAGE_SIZE) {
+        rejected = true;
+        req.removeAllListeners('data');
+        req.removeAllListeners('end');
+        req.resume();
+        res.status(400).json({ error: 'Bad Request', errorCode: 400, errorDescription: 'image size exceeds 2MB limit' });
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try {
+        if (rejected) return;
+        const buffer = Buffer.concat(chunks);
+        if (!validateImageMagic(buffer, ext)) {
+          return res.status(400).json({ error: 'Bad Request', errorCode: 400, errorDescription: 'file content does not match declared image type' });
+        }
+        fs.writeFileSync(filepath, buffer);
+        if (existing.image) {
+          const oldPath = path.join(uploadDir, path.basename(existing.image));
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+        db.run('UPDATE applications SET image = ? WHERE id = ?', [`/uploads/${filename}`, id]);
+        const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ?', [id]);
+        res.json({
+          id: app.id,
+          token: app.token,
+          name: app.name,
+          description: app.description,
+          image: app.image || '',
+          internal: false,
+        });
+      } catch (err) {
+        next(err);
+      }
+    });
+    req.on('error', (err) => next(err));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete(['/application/:id/message', '/application/:id/messages'], gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const appid = parseInt(req.params.id, 10);
     const app = db.queryOne('SELECT id FROM applications WHERE id = ? AND user_id = ?', [appid, req.user.id]);
