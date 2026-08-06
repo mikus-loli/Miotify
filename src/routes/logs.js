@@ -8,8 +8,8 @@ router.get('/logs', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const level = req.query.level || null;
     const category = req.query.category || null;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
-    const offset = parseInt(req.query.offset, 10) || 0;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
     const logs = db.getLogs({ level, category, limit, offset });
     const total = db.getLogCount({ level, category });
@@ -48,8 +48,11 @@ router.get('/logs/stats', authMiddleware, adminMiddleware, (req, res) => {
     const categoryStats = db.queryAll(
       "SELECT category, COUNT(*) as cnt FROM logs GROUP BY category ORDER BY cnt DESC LIMIT 10"
     );
+    const tzOffsetMin = new Date().getTimezoneOffset();
+    const tzModifier = tzOffsetMin === 0 ? '+0 hours' : (tzOffsetMin < 0 ? `+${-tzOffsetMin / 60} hours` : `-${tzOffsetMin / 60} hours`);
     const recentCount = db.queryOne(
-      "SELECT COUNT(*) as cnt FROM logs WHERE date(created_at) >= date('now', '-1 day')"
+      `SELECT COUNT(*) as cnt FROM logs WHERE date(created_at, ?) >= date('now', ?, ?)`,
+      [tzModifier, tzModifier, '-1 day']
     ).cnt;
 
     res.json({

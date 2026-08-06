@@ -20,9 +20,8 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: '登录尝试过于频繁，请稍后再试' },
   keyGenerator: (req) => {
-    const xff = req.headers['x-forwarded-for'];
-    const ip = xff
-      ? String(xff).split(',').map(s => s.trim()).filter(Boolean).pop()
+    const ip = config.trustProxy > 0 && req.headers['x-forwarded-for']
+      ? String(req.headers['x-forwarded-for']).split(',').map(s => s.trim()).filter(Boolean).pop()
       : req.ip;
     return ipKeyGenerator(ip || 'unknown');
   },
@@ -34,7 +33,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     if (!name || !pass) {
       throw new AppError('请输入用户名和密码', 400);
     }
-    const user = db.queryOne('SELECT id, name, pass, admin FROM users WHERE name = ?', [name]);
+    const user = db.queryOne('SELECT id, name, pass, admin, token_version FROM users WHERE name = ?', [name]);
     if (!user) {
       db.addLog({
         level: 'warn',
@@ -58,9 +57,11 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       });
       throw new AppError('用户名或密码错误', 401);
     }
-    const token = jwt.sign({ id: user.id, name: user.name, admin: user.admin }, config.jwtSecret, {
-      expiresIn: config.jwtExpiresIn,
-    });
+    const token = jwt.sign(
+      { id: user.id, name: user.name, admin: user.admin, ver: user.token_version || 0 },
+      config.jwtSecret,
+      { expiresIn: config.jwtExpiresIn }
+    );
     db.addLog({
       level: 'info',
       category: 'auth',
@@ -151,6 +152,15 @@ router.put('/user/:id', authMiddleware, (req, res, next) => {
     }
     db.run('UPDATE users SET name = ? WHERE id = ?', [name.trim(), id]);
     const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE id = ?', [id]);
+    db.addLog({
+      level: 'info',
+      category: 'user',
+      action: 'update',
+      message: `修改用户名：${user.name}`,
+      userId: req.user.id,
+      userName: req.user.name,
+      details: { targetUserId: id, newName: user.name },
+    });
     res.json(user);
   } catch (err) {
     next(err);
@@ -172,7 +182,8 @@ router.put('/user/:id/password', authMiddleware, async (req, res, next) => {
       throw new AppError('请输入密码', 400);
     }
     const hash = await bcrypt.hash(pass, 10);
-    db.run('UPDATE users SET pass = ? WHERE id = ?', [hash, id]);
+    // 密码变更后递增 token_version，使该用户已签发的旧 JWT 立即失效
+    db.run('UPDATE users SET pass = ?, token_version = token_version + 1 WHERE id = ?', [hash, id]);
     db.addLog({
       level: 'info',
       category: 'user',

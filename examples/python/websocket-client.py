@@ -12,10 +12,10 @@ def login(username, password):
     return res.json()
 
 async def listen_messages(token):
-    uri = f'{WS_URL}?token={token}'
+    uri = WS_URL
     print('   Connecting to WebSocket...')
-    
-    async with websockets.connect(uri) as ws:
+    # token 通过 Sec-WebSocket-Protocol 子协议传递（避免出现在 URL query 中被日志记录）
+    async with websockets.connect(uri, subprotocols=['miotify', token]) as ws:
         print('   WebSocket connected\n')
         print('3. Listening for messages...')
         print('   (Send a message to your app to see it here)')

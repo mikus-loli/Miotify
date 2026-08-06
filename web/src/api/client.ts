@@ -79,6 +79,9 @@ export const api = {
   getApp: (id: number, token: string) =>
     request<Application>('GET', `/application/${id}`, undefined, token),
 
+  getAppToken: (id: number, token: string) =>
+    request<{ token: string }>('GET', `/application/${id}/token`, undefined, token),
+
   updateApp: (id: number, body: UpdateAppRequest, token: string) =>
     request<Application>('PUT', `/application/${id}`, body, token),
 

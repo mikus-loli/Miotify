@@ -16,6 +16,8 @@ module.exports = {
   defaultAdminPass: process.env.DEFAULT_ADMIN_PASS || 'admin',
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  // 信任的反向代理层数：部署在 CDN/反代后设 1（默认），直连场景设 0 防止 X-Forwarded-For 伪造绕过限流
+  trustProxy: parseInt(process.env.TRUST_PROXY, 10) || 1,
   maxMessageLength: parseInt(process.env.MAX_MESSAGE_LENGTH, 10) || 5000,
   maxMessagesPerApp: parseInt(process.env.MAX_MESSAGES_PER_APP, 10) || 200,
   // 日志保留策略：按条数（默认 5000 条）和天数（默认 30 天）双重上限，0 表示不限制

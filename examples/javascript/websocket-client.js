@@ -13,7 +13,9 @@ async function login(username, password) {
 
 function connectWebSocket(token) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    // token 通过 Sec-WebSocket-Protocol 子协议传递（第二个参数），
+    // 避免出现在 URL query 中被访问日志/浏览器历史记录
+    const ws = new WebSocket(WS_URL, ['miotify', token]);
 
     ws.onopen = () => {
       console.log('   WebSocket connected');

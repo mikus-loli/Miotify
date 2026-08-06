@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import type { Application } from '@/types';
+import { api } from '@/api/client';
+import { useAuthStore } from '@/store/auth';
 import { formatTime } from '@/utils/format';
 import Icon from './Icon';
 
@@ -18,12 +20,19 @@ export default function AppCard({ app, onDelete, onUpdate, onUploadImage, onDele
   const [editDesc, setEditDesc] = useState(app.description);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const authToken = useAuthStore((s) => s.token);
 
-  const handleCopyToken = () => {
-    navigator.clipboard.writeText(app.token).then(() => {
+  // 列表接口返回的是掩码 token，复制前单独拉取完整 token（仅属主/管理员可获取）
+  const handleCopyToken = async () => {
+    try {
+      if (!authToken) return;
+      const { token: fullToken } = await api.getAppToken(app.id, authToken);
+      await navigator.clipboard.writeText(fullToken);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch (err) {
+      alert((err as Error).message);
+    }
   };
 
   const handleSave = () => {

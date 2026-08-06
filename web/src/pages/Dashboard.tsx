@@ -119,8 +119,10 @@ export default function DashboardPage() {
   ].filter(d => d.value > 0);
 
   const dayLabels = stats.messagesByDay.map(d => {
-    const date = new Date(d.date);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    // d.date 是 'YYYY-MM-DD' 字符串（服务端已按本地时区统计），
+    // 直接字符串解析避免 new Date() 按 UTC 解析再本地显示导致的跨时区偏移
+    const [, m, day] = d.date.split('-');
+    return `${Number(m)}/${Number(day)}`;
   });
 
   return (

@@ -95,6 +95,7 @@ docker run -d \
 | `TZ` | 时区 | `Asia/Shanghai` |
 | `MAX_MESSAGE_LENGTH` | 消息最大长度 | `5000` |
 | `MAX_MESSAGES_PER_APP` | 每应用最大消息数 | `200` |
+| `TRUST_PROXY` | 信任的反向代理层数（CDN/反代后保持 1；源站直连公网建议设 0，防止伪造 X-Forwarded-For 绕过限流） | `1` |
 
 > **首次启动说明**：如果未设置 `JWT_SECRET` 环境变量，系统会自动生成一个 128 字符的随机密钥并保存到数据库中，同时在控制台打印该密钥。请妥善保管此密钥，重启后会复用已保存的密钥。
 
@@ -232,15 +233,32 @@ Authorization: Bearer <JWT_TOKEN>
 
 ### WebSocket API
 
-连接地址：`ws://host:port/ws?token=<JWT_TOKEN>`
+连接地址：`ws://host:port/ws`
+
+**Token 通过 Sec-WebSocket-Protocol 子协议传递**（第二个参数），不要放在 URL query 里——避免 token 泄露到访问日志/浏览器历史。
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8080/ws?token=YOUR_JWT_TOKEN');
+// 浏览器
+const ws = new WebSocket('ws://localhost:8080/ws', ['miotify', 'YOUR_JWT_TOKEN']);
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   console.log('Message:', data);
 };
+```
+
+```python
+# Python (websockets 库)
+import asyncio, websockets, json
+
+async def listen(token):
+    async with websockets.connect('ws://localhost:8080/ws', subprotocols=['miotify', token]) as ws:
+        async for raw in ws:
+            data = json.loads(raw)
+            if data['type'] == 'message':
+                print('Message:', data['data'])
+
+asyncio.run(listen('YOUR_JWT_TOKEN'))
 ```
 
 消息格式：
@@ -333,7 +351,8 @@ module.exports = {
 
   hooks: {
     'message:beforeSend': async (ctx, message) => {
-      // 处理消息，返回 null 可阻止发送
+      // 处理消息，返回 null 可阻止发送；
+      // 返回修改后的消息时需返回完整对象 { title, message, priority, appid }（缺失字段会丢失）
       return message;
     },
     'message:afterSend': async (ctx, message) => {

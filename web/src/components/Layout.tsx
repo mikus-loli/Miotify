@@ -6,12 +6,12 @@ import Icon from './Icon';
 import MobileMenu from './MobileMenu';
 
 const navItems = [
-  { to: '/dashboard', label: '仪表盘', icon: 'dashboard' },
-  { to: '/messages', label: '消息', icon: 'message' },
-  { to: '/applications', label: '应用', icon: 'app' },
-  { to: '/users', label: '用户', icon: 'users' },
-  { to: '/plugins', label: '插件', icon: 'plugin' },
-  { to: '/logs', label: '日志', icon: 'log' },
+  { to: '/dashboard', label: '仪表盘', icon: 'dashboard', adminOnly: false },
+  { to: '/messages', label: '消息', icon: 'message', adminOnly: false },
+  { to: '/applications', label: '应用', icon: 'app', adminOnly: false },
+  { to: '/users', label: '用户', icon: 'users', adminOnly: true },
+  { to: '/plugins', label: '插件', icon: 'plugin', adminOnly: true },
+  { to: '/logs', label: '日志', icon: 'log', adminOnly: true },
 ];
 
 export default function Layout() {
@@ -93,7 +93,7 @@ export default function Layout() {
         </div>
 
         <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {navItems.map((item) => (
+          {navItems.filter(item => !item.adminOnly || user?.admin).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
