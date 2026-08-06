@@ -24,8 +24,9 @@ const gotifyLimiter = rateLimit({
     errorCode: 429,
     errorDescription: 'Too many requests, please try again later',
   },
-  // 健康检查/版本探测不消耗配额（免 token 端点，监控探活不应被限流）
-  skip: (req) => req.path === '/health' || req.path === '/version',
+  // 健康检查/版本探测不消耗配额（免 token 端点，监控探活不应被限流）。
+  // /health 已在入口层定义并返回（见 src/index.js），不经过本 router，无需 skip。
+  skip: (req) => req.path === '/version',
   // CDN 后面取真实客户端 IP（与 /api 限流一致），ipKeyGenerator 规范化 IPv6
   keyGenerator: (req) => {
     const ip = config.trustProxy > 0 && req.headers['x-forwarded-for']
@@ -130,10 +131,6 @@ function formatMessage(msg) {
   };
 }
 
-router.get('/health', (req, res) => {
-  res.json({ health: 'green' });
-});
-
 router.get('/version', (req, res) => {
   res.json({ version: GOTIFY_VERSION });
 });
@@ -202,7 +199,13 @@ router.post('/message', gotifyTokenMiddleware, requireAppToken, async (req, res,
 
     await pluginManager.executeHook('message:afterSend', msg);
 
-    wsManager.broadcastToApp(req.app.user_id, req.app.id, msg);
+    // WS 推送保持 db 行格式（created_at 字段，前端 MessageCard 依赖），
+    // 仅将 extras 解析为对象，与 REST 响应的 extras 形态一致
+    let wsExtras = null;
+    if (msg.extras) {
+      try { wsExtras = JSON.parse(msg.extras); } catch (_) { wsExtras = null; }
+    }
+    wsManager.broadcastToApp(req.app.user_id, req.app.id, { ...msg, extras: wsExtras });
 
     console.log(`[Gotify] Message created: id=${msg.id} app=${req.app.name}(${req.app.id}) priority=${priority}`);
 
@@ -390,26 +393,65 @@ router.get('/current/user', gotifyTokenMiddleware, requireClientToken, (req, res
   }
 });
 
+// 官方端点：修改当前用户密码（client token）
+// 与内部 /api/user/:id/password 一致：bcrypt 72 字节上限 + token_version 递增使旧 token 立即失效
+router.post('/current/user/password', gotifyTokenMiddleware, requireClientToken, async (req, res, next) => {
+  try {
+    const { pass } = req.body;
+    if (!pass) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        errorCode: 400,
+        errorDescription: 'pass is required',
+      });
+    }
+    if (pass.length > 72) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        errorCode: 400,
+        errorDescription: 'password must not exceed 72 characters',
+      });
+    }
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash(pass, 10);
+    db.run('UPDATE users SET pass = ?, token_version = token_version + 1 WHERE id = ?', [hash, req.user.id]);
+    db.addLog({
+      level: 'info',
+      category: 'user',
+      action: 'change_password',
+      message: `通过 Gotify 端点修改密码（用户 ${req.user.name}）`,
+      userId: req.user.id,
+      userName: req.user.name,
+      details: { source: 'gotify-compat' },
+    });
+    res.json({});
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/application', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const { name, description } = req.body;
-    if (!name) {
+    // 与内部 /api/application 一致：name 必须存在且 trim 后非空，防止存带空格的应用名
+    if (!name || !String(name).trim()) {
       return res.status(400).json({
         error: 'Bad Request',
         errorCode: 400,
         errorDescription: 'name is required',
       });
     }
+    const appName = String(name).trim();
     const { v4: uuidv4 } = require('uuid');
     const token = uuidv4();
     db.run('INSERT INTO applications (token, name, description, user_id) VALUES (?, ?, ?, ?)', [
       token,
-      name,
+      appName,
       description || '',
       req.user.id,
     ]);
     const app = db.queryOne('SELECT id, token, name, description, image FROM applications WHERE token = ?', [token]);
-    console.log(`[Gotify] Application created: ${name} by user ${req.user.name}`);
+    console.log(`[Gotify] Application created: ${appName} by user ${req.user.name}`);
     // 创建时返回完整 token（仅此一次）
     // 触发 app:onCreate hook（不阻塞响应）
     pluginManager.executeHook('app:onCreate', { id: app.id, name: app.name, user_id: req.user.id }).catch(() => {});
@@ -438,7 +480,18 @@ router.put('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, 
       });
     }
     const { name, description } = req.body;
-    if (name) db.run('UPDATE applications SET name = ? WHERE id = ?', [name, id]);
+    if (name) {
+      // 与创建一致：更新应用名也 trim，防止引入带空格的名字
+      const trimmed = String(name).trim();
+      if (!trimmed) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          errorCode: 400,
+          errorDescription: 'name must not be empty',
+        });
+      }
+      db.run('UPDATE applications SET name = ? WHERE id = ?', [trimmed, id]);
+    }
     if (description !== undefined) db.run('UPDATE applications SET description = ? WHERE id = ?', [description, id]);
     const app = db.queryOne('SELECT id, token, name, description, image FROM applications WHERE id = ?', [id]);
     res.json({
@@ -515,9 +568,10 @@ router.get(['/application/:id/message', '/application/:id/messages'], gotifyToke
     params.push(limit);
 
     const messages = db.queryAll(sql, params);
-    // 官方 paging.next 为 URL 字符串，用最新消息 id 作为下次增量游标
+    // 官方 paging.next 为 URL 字符串，用最新消息 id 作为下次增量游标。
+    // 指向官方单数路径 /application/{id}/message（Miotify 同时兼容复数，但 next 应给官方形态）
     const next = messages.length > 0
-      ? `/application/${appid}/messages?limit=${limit}&since=${messages[0].id}`
+      ? `/application/${appid}/message?limit=${limit}&since=${messages[0].id}`
       : null;
     res.json({
       messages: messages.map(formatMessage),

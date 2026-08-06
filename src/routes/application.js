@@ -19,13 +19,15 @@ if (!fs.existsSync(uploadDir)) {
 router.post('/application', authMiddleware, (req, res, next) => {
   try {
     const { name, description } = req.body;
-    if (!name) {
+    // name 必须存在且 trim 后非空，防止存带空格的应用名（登录/筛选时难以匹配）
+    if (!name || !String(name).trim()) {
       throw new AppError('name is required', 400);
     }
+    const appName = String(name).trim();
     const token = uuidv4();
     db.run('INSERT INTO applications (token, name, description, user_id) VALUES (?, ?, ?, ?)', [
       token,
-      name,
+      appName,
       description || '',
       req.user.id,
     ]);
@@ -86,7 +88,12 @@ router.put('/application/:id', authMiddleware, (req, res, next) => {
     }
     const { name, description, image } = req.body;
     if (name) {
-      db.run('UPDATE applications SET name = ? WHERE id = ?', [name, id]);
+      // 与创建一致：更新应用名也 trim，防止引入带空格的名字
+      const trimmed = String(name).trim();
+      if (!trimmed) {
+        throw new AppError('name must not be empty', 400);
+      }
+      db.run('UPDATE applications SET name = ? WHERE id = ?', [trimmed, id]);
     }
     if (description !== undefined) {
       db.run('UPDATE applications SET description = ? WHERE id = ?', [description, id]);

@@ -53,7 +53,7 @@ Write-Host $deleteRes.message
 # 6. Health Check
 # ============================================
 Write-Host "`n=== Health Check ===" -ForegroundColor Cyan
-$health = Invoke-RestMethod -Uri "$BASE_URL/health" -Method GET
+$health = Invoke-RestMethod -Uri "http://localhost:8080/health" -Method GET
 Write-Host "Status: $($health.status)"
 Write-Host "WebSocket connections: $($health.websocket)"
 
