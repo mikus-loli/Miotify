@@ -6,8 +6,8 @@ const db = require('../db');
 const config = require('../config');
 const pluginManager = require('../plugins/manager');
 const wsManager = require('../websocket');
-const { AppError } = require('../middleware/error');
 const { verifyAndLoadUser } = require('../middleware/auth');
+const { sendMessage } = require('../services/messageService');
 
 const router = express.Router();
 
@@ -137,67 +137,35 @@ router.get('/version', (req, res) => {
 
 router.post('/message', gotifyTokenMiddleware, requireAppToken, async (req, res, next) => {
   try {
-    let { title, message, priority, extras } = req.body;
+    const { title } = req.body;
+    // 核心流程（校验/hook/超限清理/插入/afterSend）与内部 /api/message 共用 messageService；
+    // 本层只负责 Gotify 特有行为：title 缺省用应用名、Gotify 格式错误响应、日志与 WS 广播
+    const result = await sendMessage(req.app, { ...req.body, title: title || req.app.name });
 
-    if (!message) {
+    if (!result.ok) {
+      const errorDescription = {
+        EMPTY: 'message is required',
+        TOO_LONG: `message too long (max ${config.maxMessageLength} chars)`,
+        REJECTED: 'message rejected by plugin',
+      }[result.error];
       return res.status(400).json({
         error: 'Bad Request',
         errorCode: 400,
-        errorDescription: 'message is required',
+        errorDescription,
       });
     }
 
-    if (message.length > config.maxMessageLength) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        errorCode: 400,
-        errorDescription: `message too long (max ${config.maxMessageLength} chars)`,
-      });
-    }
-
-    if (!title) {
-      title = req.app.name;
-    }
-
-    const processed = await pluginManager.executeHook('message:beforeSend', {
-      title,
-      message,
-      priority: priority || 0,
-      appid: req.app.id,
+    const msg = result.msg;
+    // 与内部 API 一致：记录发送成功日志
+    db.addLog({
+      level: 'info',
+      category: 'message',
+      action: 'message_sent',
+      message: `通过应用 "${req.app.name}" 发送消息`,
+      appId: req.app.id,
+      appName: req.app.name,
+      details: { messageId: msg.id, title: msg.title, priority: msg.priority },
     });
-
-    if (processed === null) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        errorCode: 400,
-        errorDescription: 'message rejected by plugin',
-      });
-    }
-
-    title = processed.title;
-    message = processed.message;
-    priority = processed.priority;
-
-    const count = db.queryOne('SELECT COUNT(*) as cnt FROM messages WHERE appid = ?', [req.app.id]);
-    if (count.cnt >= config.maxMessagesPerApp) {
-      const oldest = db.queryOne('SELECT id FROM messages WHERE appid = ? ORDER BY id ASC LIMIT 1', [req.app.id]);
-      if (oldest) {
-        db.run('DELETE FROM messages WHERE id = ?', [oldest.id]);
-      }
-    }
-
-    const extrasJson = extras ? JSON.stringify(extras) : null;
-    db.run('INSERT INTO messages (appid, message, title, priority, extras) VALUES (?, ?, ?, ?, ?)', [
-      req.app.id,
-      message,
-      title || '',
-      priority || 0,
-      extrasJson,
-    ]);
-
-    const msg = db.queryOne('SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid = ? ORDER BY id DESC LIMIT 1', [req.app.id]);
-
-    await pluginManager.executeHook('message:afterSend', msg);
 
     // WS 推送保持 db 行格式（created_at 字段，前端 MessageCard 依赖），
     // 仅将 extras 解析为对象，与 REST 响应的 extras 形态一致
@@ -207,7 +175,7 @@ router.post('/message', gotifyTokenMiddleware, requireAppToken, async (req, res,
     }
     wsManager.broadcastToApp(req.app.user_id, req.app.id, { ...msg, extras: wsExtras });
 
-    console.log(`[Gotify] Message created: id=${msg.id} app=${req.app.name}(${req.app.id}) priority=${priority}`);
+    console.log(`[Gotify] Message created: id=${msg.id} app=${req.app.name}(${req.app.id}) priority=${msg.priority}`);
 
     res.status(200).json(formatMessage(msg));
   } catch (err) {
