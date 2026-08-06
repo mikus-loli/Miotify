@@ -96,6 +96,12 @@ docker run -d \
 | `MAX_MESSAGE_LENGTH` | 消息最大长度 | `5000` |
 | `MAX_MESSAGES_PER_APP` | 每应用最大消息数 | `200` |
 | `TRUST_PROXY` | 信任的反向代理层数（CDN/反代后保持 1；源站直连公网建议设 0，防止伪造 X-Forwarded-For 绕过限流） | `1` |
+| `RATE_LIMIT_WINDOW_MS` | API 限流窗口（毫秒） | `900000`（15 分钟） |
+| `RATE_LIMIT_MAX` | 每窗口最大请求数 | `100` |
+| `LOG_RETENTION_COUNT` | 日志保留条数上限（0 = 不限制） | `5000` |
+| `LOG_RETENTION_DAYS` | 日志保留天数上限（0 = 不限制） | `30` |
+| `WS_MAX_CONNECTIONS_PER_USER` | 单用户 WebSocket 最大连接数（0 = 不限制） | `5` |
+| `CORS_ORIGIN` | 跨域白名单（逗号分隔）。留空 = 同源部署，禁止跨域（推荐） | 空 |
 
 > **首次启动说明**：如果未设置 `JWT_SECRET` 环境变量，系统会自动生成一个 128 字符的随机密钥并保存到数据库中，同时在控制台打印该密钥。请妥善保管此密钥，重启后会复用已保存的密钥。
 
@@ -151,11 +157,12 @@ Content-Type: application/json
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/application` | GET | 获取应用列表 |
+| `/api/application` | GET | 获取应用列表（token 掩码） |
 | `/api/application` | POST | 创建应用 |
 | `/api/application/:id` | GET | 获取应用详情 |
 | `/api/application/:id` | PUT | 更新应用 |
 | `/api/application/:id` | DELETE | 删除应用 |
+| `/api/application/:id/token` | GET | 获取完整 token（仅属主/管理员，列表接口刻意掩码防泄露） |
 | `/api/application/:id/image` | POST | 上传应用图标 |
 | `/api/application/:id/image` | DELETE | 删除应用图标 |
 
@@ -278,22 +285,33 @@ asyncio.run(listen('YOUR_JWT_TOKEN'))
 
 ## Gotify 兼容
 
-Miotify 完全兼容 Gotify REST API，可直接用于青龙面板等支持 Gotify 的应用。
+Miotify 兼容 Gotify REST API 的常用端点，可直接用于青龙面板等支持 Gotify 的应用。
 
 ### 兼容端点
 
 | Gotify 端点 | 说明 |
 |-------------|------|
-| `POST /message` | 发送消息 |
-| `GET /message` | 获取消息列表 |
+| `POST /message` | 发送消息（App Token） |
+| `GET /message` | 获取消息列表（Client Token） |
 | `GET /message/:id` | 获取单条消息 |
-| `DELETE /message/:id` | 删除消息 |
-| `GET /application` | 获取应用列表 |
+| `DELETE /message/:id` | 删除单条消息 |
+| `DELETE /message` | 删除当前用户全部消息 |
+| `GET /application` | 获取应用列表（返回完整 token） |
+| `GET /application/:id` | 获取单个应用 |
 | `POST /application` | 创建应用 |
 | `PUT /application/:id` | 更新应用 |
 | `DELETE /application/:id` | 删除应用 |
-| `GET /health` | 健康检查 |
+| `POST /application/:id/image` | 上传应用图标 |
+| `GET /application/:id/message` | 获取该应用的消息（官方单数路径） |
+| `DELETE /application/:id/message` | 删除该应用的全部消息 |
+| `GET /current/user` | 获取当前用户信息 |
+| `POST /current/user/password` | 修改当前用户密码（旧 token 立即失效） |
+| `GET /health` | 健康检查（含 `health: "green"`） |
 | `GET /version` | 版本信息 |
+
+> **兼容范围说明**：Miotify 实现了 Gotify 的消息/应用/当前用户端点。Gotify 的
+> `/user` 用户管理端点和 `/plugin` 插件端点未实现——对应功能请使用 Miotify 自身的
+> `/api/user` 与 `/api/plugins` 管理 API。
 
 ### 认证方式
 
@@ -378,8 +396,13 @@ module.exports = {
 |------|------|------|
 | `message:beforeSend` | message | 消息发送前，返回 null 阻止发送 |
 | `message:afterSend` | message | 消息发送后 |
+| `message:onReceive` | message | 客户端拉取到消息时 |
 | `user:onCreate` | user | 用户创建时 |
+| `user:onDelete` | user | 用户删除时 |
 | `app:onCreate` | app | 应用创建时 |
+| `app:onDelete` | app | 应用删除时 |
+| `plugin:onEnable` | plugin | 插件启用时 |
+| `plugin:onDisable` | plugin | 插件停用时 |
 
 ### 内置插件
 

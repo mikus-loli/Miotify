@@ -125,7 +125,13 @@ export const api = {
   deleteMessage: (id: number, token: string) =>
     request<{ message: string }>('DELETE', `/message/${id}`, undefined, token),
 
-  health: () => request<{ status: string; websocket: number }>('GET', '/health'),
+  health: async () => {
+    // 健康检查端点挂在根路径（不在 /api 前缀下），不走 BASE_URL
+    const res = await fetch('/health');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data as { status: string; websocket: number; health?: string };
+  },
 
   listPlugins: (token: string) =>
     request<Plugin[]>('GET', '/plugins', undefined, token),

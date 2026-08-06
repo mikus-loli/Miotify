@@ -184,9 +184,9 @@ describe('回归：stats 时区统计', () => {
     assert.ok(res.data.totalMessages >= 1);
 
     // 近 7 天必须包含今天的日期且有计数（验证 SELECT 子句里日期修饰符的参数顺序）
-    const tzOffsetMin = new Date().getTimezoneOffset();
+    // 注意：new Date() 已是本地时间，直接用本地分量拼 YYYY-MM-DD；
+    // 切勿再 setMinutes(-getTimezoneOffset()) —— 那会做双重时区偏移（UTC+8 时区下变成明天）
     const now = new Date();
-    now.setMinutes(now.getMinutes() - tzOffsetMin); // 转本地
     const todayLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const today = res.data.messagesByDay.find(d => d.date === todayLabel);
     assert.ok(today, `messagesByDay 应包含今天 ${todayLabel}，实际 ${JSON.stringify(res.data.messagesByDay)}`);

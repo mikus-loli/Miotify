@@ -58,6 +58,19 @@ async function createApp() {
   await pluginManager.loadPlugins();
   console.log('[Plugin] Plugins loaded');
 
+  // 运行期每小时轮转一次日志，防止 logs 表无限增长（启动时已轮转过一次）。
+  // unref() 让定时器不阻止进程退出（测试/优雅关闭时无残留）。
+  const logRotateTimer = setInterval(() => {
+    try {
+      db.rotateLogs();
+    } catch (err) {
+      console.error('[DB] Log rotation failed:', err.message);
+    }
+  }, 60 * 60 * 1000);
+  if (typeof logRotateTimer.unref === 'function') {
+    logRotateTimer.unref();
+  }
+
   const app = express();
 
   // trust proxy：部署在 ESA CDN / 反向代理后。默认信任一层代理，
@@ -130,7 +143,9 @@ async function createApp() {
   app.use('/api', limiter);
 
   app.get('/health', (req, res) => {
-    res.json({ status: 'ok', websocket: wsManager.getConnectedCount() });
+    // 同时兼容 Miotify 内部监控（status/websocket 连接数）与 Gotify 官方客户端（health 字段），
+    // 避免 Gotify 兼容层的 /health 死路由（此处先注册会命中，gotify router 内的副本不可达）
+    res.json({ status: 'ok', websocket: wsManager.getConnectedCount(), health: 'green' });
   });
 
   app.use('/api', authRoutes);

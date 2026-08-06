@@ -50,6 +50,7 @@ export interface Message {
   title: string;
   priority: number;
   created_at: string;
+  extras?: Record<string, unknown> | null;
 }
 
 export interface SendMessageRequest {
@@ -61,7 +62,7 @@ export interface SendMessageRequest {
 export interface MessageListResponse {
   messages: Message[];
   paging: {
-    next: number | null;
+    next: string | null;
     limit: number;
     since: number;
   };

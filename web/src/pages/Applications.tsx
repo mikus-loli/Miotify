@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppStore } from '@/store/apps';
 import AppCard from '@/components/AppCard';
 import Icon from '@/components/Icon';
 
 export default function ApplicationsPage() {
   const { apps, loading, fetchApps, createApp, deleteApp, updateApp, uploadAppImage, deleteAppImage } = useAppStore();
-  const [showCreate, setShowCreate] = useState(false);
+  // 支持 /applications?create=1（MobileMenu「创建应用」入口）自动展开创建表单
+  const [searchParams] = useSearchParams();
+  const [showCreate, setShowCreate] = useState(searchParams.get('create') === '1');
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
 

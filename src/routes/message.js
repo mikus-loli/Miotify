@@ -8,9 +8,22 @@ const pluginManager = require('../plugins/manager');
 
 const router = express.Router();
 
+// 将 db 行的 extras JSON 字符串解析为对象（与 gotify 端点的 formatMessage 行为一致）
+function parseExtras(row) {
+  if (!row) return row;
+  if (row.extras) {
+    try {
+      row.extras = JSON.parse(row.extras);
+    } catch (_) {
+      row.extras = null;
+    }
+  }
+  return row;
+}
+
 router.post('/message', appTokenMiddleware, async (req, res, next) => {
   try {
-    let { title, message, priority } = req.body;
+    let { title, message, priority, extras } = req.body;
     if (!message) {
       throw new AppError('消息内容不能为空', 400);
     }
@@ -49,13 +62,14 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
         db.run('DELETE FROM messages WHERE id = ?', [oldest.id]);
       }
     }
-    db.run('INSERT INTO messages (appid, message, title, priority) VALUES (?, ?, ?, ?)', [
+    db.run('INSERT INTO messages (appid, message, title, priority, extras) VALUES (?, ?, ?, ?, ?)', [
       req.app.id,
       message,
       title || '',
       priority || 0,
+      extras ? JSON.stringify(extras) : null,
     ]);
-    const msg = db.queryOne('SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid = ? ORDER BY id DESC LIMIT 1', [req.app.id]);
+    const msg = db.queryOne('SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid = ? ORDER BY id DESC LIMIT 1', [req.app.id]);
 
     db.addLog({
       level: 'info',
@@ -69,8 +83,10 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
 
     await pluginManager.executeHook('message:afterSend', msg);
 
-    wsManager.broadcastToApp(req.app.user_id, req.app.id, msg);
-    res.status(201).json(msg);
+    // WS 推送与 REST 响应保持一致：extras 解析为对象后再广播
+    const parsedMsg = parseExtras(msg);
+    wsManager.broadcastToApp(req.app.user_id, req.app.id, parsedMsg);
+    res.status(201).json(parsedMsg);
   } catch (err) {
     next(err);
   }
@@ -99,7 +115,7 @@ router.get('/message', authMiddleware, (req, res, next) => {
       if (!app) {
         throw new AppError('应用不存在', 404);
       }
-      sql = `SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid = ?${cursorClause} ORDER BY id DESC LIMIT ?`;
+      sql = `SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid = ?${cursorClause} ORDER BY id DESC LIMIT ?`;
       params = [appid];
       if (idCursor > 0) params.push(idCursor);
       else if (since > 0) params.push(since);
@@ -110,13 +126,13 @@ router.get('/message', authMiddleware, (req, res, next) => {
         return res.json({ messages: [], paging: { next: null, limit, since } });
       }
       const placeholders = appIds.map(() => '?').join(',');
-      sql = `SELECT id, appid, message, title, priority, created_at FROM messages WHERE appid IN (${placeholders})${cursorClause} ORDER BY id DESC LIMIT ?`;
+      sql = `SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid IN (${placeholders})${cursorClause} ORDER BY id DESC LIMIT ?`;
       params = [...appIds];
       if (idCursor > 0) params.push(idCursor);
       else if (since > 0) params.push(since);
       params.push(limit);
     }
-    const messages = db.queryAll(sql, params);
+    const messages = db.queryAll(sql, params).map(parseExtras);
     // paging.next 统一为 URL 字符串（与 gotify 端点一致）：翻页用 id、增量用 since
     let next = null;
     if (messages.length > 0) {
@@ -139,7 +155,7 @@ router.get('/message', authMiddleware, (req, res, next) => {
 router.get('/message/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const msg = db.queryOne('SELECT id, appid, message, title, priority, created_at FROM messages WHERE id = ?', [id]);
+    const msg = db.queryOne('SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE id = ?', [id]);
     if (!msg) {
       throw new AppError('消息不存在', 404);
     }
@@ -147,7 +163,7 @@ router.get('/message/:id', authMiddleware, (req, res, next) => {
     if (!app) {
       throw new AppError('消息不存在', 404);
     }
-    res.json(msg);
+    res.json(parseExtras(msg));
   } catch (err) {
     next(err);
   }
