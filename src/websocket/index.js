@@ -37,6 +37,17 @@ class WebSocketManager {
       ws.userId = userId;
       ws.appIds = new Set();
 
+      // 单用户连接数上限：防止持有有效 token 的客户端开大量连接耗尽内存
+      const maxPerUser = config.wsMaxConnectionsPerUser;
+      if (maxPerUser > 0) {
+        const existing = clients.get(userId);
+        if (existing && existing.size >= maxPerUser) {
+          ws.close(4003, `Too many connections (max ${maxPerUser})`);
+          console.warn(`[WS] Rejected connection for user ${userId}: limit ${maxPerUser} reached`);
+          return;
+        }
+      }
+
       if (!clients.has(userId)) {
         clients.set(userId, new Set());
       }

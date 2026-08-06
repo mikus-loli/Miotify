@@ -39,11 +39,20 @@ jobs:
             package-lock.json
             web/package-lock.json
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency security audit
+        run: npm audit --omit=dev
+
       - name: Syntax check server code
         run: |
           for f in $(find src plugins -name '*.js'); do
             node --check "$f" || exit 1
           done
+
+      - name: Backend integration tests
+        run: npm test
 
       - name: Install and test frontend
         working-directory: web
