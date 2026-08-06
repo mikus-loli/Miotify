@@ -5,6 +5,7 @@ const { authMiddleware, appTokenMiddleware } = require('../middleware/auth');
 const { AppError } = require('../middleware/error');
 const wsManager = require('../websocket');
 const pluginManager = require('../plugins/manager');
+const { sendMessage } = require('../services/messageService');
 
 const router = express.Router();
 
@@ -23,22 +24,16 @@ function parseExtras(row) {
 
 router.post('/message', appTokenMiddleware, async (req, res, next) => {
   try {
-    let { title, message, priority, extras } = req.body;
-    if (!message) {
-      throw new AppError('消息内容不能为空', 400);
-    }
-    if (message.length > config.maxMessageLength) {
-      throw new AppError(`消息长度超过限制（最大 ${config.maxMessageLength} 字符）`, 400);
-    }
-
-    const processed = await pluginManager.executeHook('message:beforeSend', {
-      title,
-      message,
-      priority: priority || 0,
-      appid: req.app.id,
-    });
-
-    if (processed === null) {
+    const result = await sendMessage(req.app, req.body);
+    if (!result.ok) {
+      // 核心流程在 messageService 统一处理，这里只做内部 API 的错误文案与日志
+      if (result.error === 'EMPTY') {
+        throw new AppError('消息内容不能为空', 400);
+      }
+      if (result.error === 'TOO_LONG') {
+        throw new AppError(`消息长度超过限制（最大 ${config.maxMessageLength} 字符）`, 400);
+      }
+      // REJECTED：记录被拒日志（与发送成功日志对称）
       db.addLog({
         level: 'warn',
         category: 'message',
@@ -46,31 +41,12 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
         message: `消息被插件拒绝：应用 "${req.app.name}"`,
         appId: req.app.id,
         appName: req.app.name,
-        details: { title, messagePreview: message.substring(0, 100) },
+        details: { title: req.body.title, messagePreview: String(req.body.message || '').substring(0, 100) },
       });
       throw new AppError('消息被插件拒绝', 400);
     }
 
-    title = processed.title;
-    message = processed.message;
-    priority = processed.priority;
-
-    const count = db.queryOne('SELECT COUNT(*) as cnt FROM messages WHERE appid = ?', [req.app.id]);
-    if (count.cnt >= config.maxMessagesPerApp) {
-      const oldest = db.queryOne('SELECT id FROM messages WHERE appid = ? ORDER BY id ASC LIMIT 1', [req.app.id]);
-      if (oldest) {
-        db.run('DELETE FROM messages WHERE id = ?', [oldest.id]);
-      }
-    }
-    db.run('INSERT INTO messages (appid, message, title, priority, extras) VALUES (?, ?, ?, ?, ?)', [
-      req.app.id,
-      message,
-      title || '',
-      priority || 0,
-      extras ? JSON.stringify(extras) : null,
-    ]);
-    const msg = db.queryOne('SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid = ? ORDER BY id DESC LIMIT 1', [req.app.id]);
-
+    const msg = result.msg;
     db.addLog({
       level: 'info',
       category: 'message',
@@ -80,8 +56,6 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
       appName: req.app.name,
       details: { messageId: msg.id, title: msg.title, priority: msg.priority },
     });
-
-    await pluginManager.executeHook('message:afterSend', msg);
 
     // WS 推送与 REST 响应保持一致：extras 解析为对象后再广播
     const parsedMsg = parseExtras(msg);
