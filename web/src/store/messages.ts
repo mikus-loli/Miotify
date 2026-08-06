@@ -52,11 +52,16 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   subscribe: () => {
     const handler = (msg: Message) => {
-      const current = get().messages;
+      const { filterAppId, messages: current } = get();
+      // 实时推送按当前筛选过滤（筛选状态下不混入其他应用的新消息）
+      if (filterAppId !== null && msg.appid !== filterAppId) return;
       if (current.some((m) => m.id === msg.id)) return;
-      set({ messages: [msg, ...current] });
+      // 限制列表长度，避免长时间运行 + 高频推送导致内存无限增长
+      set({ messages: [msg, ...current].slice(0, MAX_LISTED_MESSAGES) });
     };
     // onMessage 返回取消订阅函数，避免组件卸载后覆盖其他订阅者的 handler
     return wsManager.onMessage(handler);
   },
 }));
+
+const MAX_LISTED_MESSAGES = 200;

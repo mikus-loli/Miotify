@@ -44,11 +44,11 @@ module.exports = {
         return;
       }
 
-      if (config.enabledApps && config.enabledApps.length > 0) {
-        if (!config.enabledApps.includes(message.appid)) {
-          log('info', `Skipping email for app ${message.appid} (not in enabledApps)`);
-          return;
-        }
+      // 统一按数字比较：配置可能是字符串数组（UI 逗号分隔输入），避免 includes(数字) 失效
+      const enabledAppIds = (config.enabledApps || []).map(Number);
+      if (enabledAppIds.length > 0 && !enabledAppIds.includes(Number(message.appid))) {
+        log('info', `Skipping email for app ${message.appid} (not in enabledApps)`);
+        return;
       }
 
       const subject = (config.subject || '[Miotify] {title}')

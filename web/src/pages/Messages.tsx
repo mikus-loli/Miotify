@@ -1,21 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useMessageStore } from '@/store/messages';
 import { useAppStore } from '@/store/apps';
 import MessageCard from '@/components/MessageCard';
 
 export default function MessagesPage() {
-  const { messages, loading, fetchMessages, deleteMessage } = useMessageStore();
+  const { messages, loading, fetchMessages, deleteMessage, filterAppId, setFilterAppId } = useMessageStore();
   const { apps, fetchApps } = useAppStore();
-  const [filterApp, setFilterApp] = useState<number | 'all'>('all');
 
   useEffect(() => {
     fetchMessages();
     fetchApps();
   }, [fetchMessages, fetchApps]);
 
-  const filtered = filterApp === 'all'
+  const filtered = filterAppId === null
     ? messages
-    : messages.filter((m) => m.appid === filterApp);
+    : messages.filter((m) => m.appid === filterAppId);
 
   return (
     <div>
@@ -23,14 +22,14 @@ export default function MessagesPage() {
         <div>
           <h1>消息</h1>
           <p className="page-header-subtitle">
-            {messages.length} 条消息{filterApp !== 'all' ? ' · 筛选中' : ''}
+            {messages.length} 条消息{filterAppId !== null ? ' · 筛选中' : ''}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <select
             className="input"
-            value={filterApp}
-            onChange={(e) => setFilterApp(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            value={filterAppId ?? 'all'}
+            onChange={(e) => setFilterAppId(e.target.value === 'all' ? null : Number(e.target.value))}
             style={{ width: 'auto', minWidth: 150 }}
           >
             <option value="all">全部应用</option>

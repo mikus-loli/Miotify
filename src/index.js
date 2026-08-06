@@ -9,7 +9,7 @@ const config = require('./config');
 const db = require('./db');
 const wsManager = require('./websocket');
 const pluginManager = require('./plugins/manager');
-const { errorHandler, notFoundHandler } = require('./middleware/error');
+const { errorHandler, notFoundHandler, AppError } = require('./middleware/error');
 
 const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/application');
@@ -60,9 +60,10 @@ async function createApp() {
 
   const app = express();
 
-  // trust proxy：部署在 ESA CDN / 反向代理后。设 1 信任一层代理，
-  // 让 req.ip / 限流拿到真实客户端 IP（X-Forwarded-For 最右一层）
-  app.set('trust proxy', 1);
+  // trust proxy：部署在 ESA CDN / 反向代理后。默认信任一层代理，
+  // 让 req.ip / 限流拿到真实客户端 IP（X-Forwarded-For 最右一层）。
+  // 直连场景可设 TRUST_PROXY=0，此时不信任 XFF，防止伪造 IP 绕过限流。
+  app.set('trust proxy', config.trustProxy);
 
   // CORS 默认关闭跨域（前端 SPA 与 API 同源部署，不需要 CORS）。
   // 如需跨域访问，显式设置 CORS_ORIGIN 环境变量（逗号分隔白名单）。
@@ -76,7 +77,8 @@ async function createApp() {
         if (!origin || corsOrigins.includes(origin)) {
           cb(null, true);
         } else {
-          cb(new Error('CORS origin not allowed'));
+          // 用 AppError(403) 让非白名单 Origin 得到 403 而不是 500
+          cb(new AppError('CORS origin not allowed', 403));
         }
       },
       credentials: true,
@@ -116,11 +118,11 @@ async function createApp() {
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later' },
     // CDN 后面多层代理时，显式取 X-Forwarded-For 最右一层（真实客户端 IP），
-    // 并交给 ipKeyGenerator 规范化（IPv6 /64 聚合，防绕过）
+    // 并交给 ipKeyGenerator 规范化（IPv6 /64 聚合，防绕过）。
+    // TRUST_PROXY=0（直连）时忽略 XFF，防止伪造头绕过限流。
     keyGenerator: (req) => {
-      const xff = req.headers['x-forwarded-for'];
-      const ip = xff
-        ? String(xff).split(',').map(s => s.trim()).filter(Boolean).pop()
+      const ip = config.trustProxy > 0 && req.headers['x-forwarded-for']
+        ? String(req.headers['x-forwarded-for']).split(',').map(s => s.trim()).filter(Boolean).pop()
         : req.ip;
       return ipKeyGenerator(ip || 'unknown');
     },

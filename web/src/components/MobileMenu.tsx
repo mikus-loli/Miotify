@@ -60,6 +60,9 @@ const menuStructure: MenuItem[] = [
 
 const STORAGE_KEY = 'miotify_menu_state';
 
+// 仅管理员可见的菜单项（普通用户不显示，避免点击后 403）
+const ADMIN_ONLY_IDS = new Set(['users', 'plugins', 'logs']);
+
 interface MenuState {
   mode: MenuMode;
   expandedItems: string[];
@@ -181,9 +184,10 @@ export default function MobileMenu() {
     }));
   }, []);
 
-  const currentItems = levelHistory.length > 0
+  const currentItems = (levelHistory.length > 0
     ? levelHistory[levelHistory.length - 1].items
-    : menuStructure;
+    : menuStructure
+  ).filter(item => !ADMIN_ONLY_IDS.has(item.id) || user?.admin);
 
   const renderMenuItem = (item: MenuItem, depth: number = 0) => {
     const hasChildren = item.children && item.children.length > 0;

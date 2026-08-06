@@ -61,6 +61,21 @@ router.get('/application/:id', authMiddleware, (req, res, next) => {
   }
 });
 
+// 获取完整 token：列表接口故意掩码防泄露，需要完整 token（配置青龙/NapCat 等）时单独拉取。
+// 仅应用属主或管理员可查看。
+router.get('/application/:id/token', authMiddleware, (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const app = db.queryOne('SELECT id, token, user_id FROM applications WHERE id = ?', [id]);
+    if (!app || (app.user_id !== req.user.id && !req.user.admin)) {
+      throw new AppError('application not found', 404);
+    }
+    res.json({ token: app.token });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.put('/application/:id', authMiddleware, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -76,6 +91,14 @@ router.put('/application/:id', authMiddleware, (req, res, next) => {
       db.run('UPDATE applications SET description = ? WHERE id = ?', [description, id]);
     }
     if (image !== undefined) {
+      // 仅允许服务端上传的 /uploads/ 路径或 http(s) 外部图片 URL，
+      // 防止任意字符串（如 javascript:、file:、追踪像素）写入 image 字段
+      const validImage = image === '' ||
+        /^\/uploads\/[A-Za-z0-9._-]+$/.test(image) ||
+        /^https?:\/\//i.test(image);
+      if (!validImage) {
+        throw new AppError('image must be an /uploads/ path or http(s) URL', 400);
+      }
       db.run('UPDATE applications SET image = ? WHERE id = ?', [image, id]);
     }
     const app = db.queryOne('SELECT id, token, name, description, image, user_id, created_at FROM applications WHERE id = ?', [id]);
@@ -140,11 +163,29 @@ router.post('/application/:id/image', authMiddleware, (req, res, next) => {
     const filepath = path.join(uploadDir, filename);
 
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
+    let received = 0;
+    let rejected = false;
+    const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+    req.on('data', (chunk) => {
+      if (rejected) return;
+      received += chunk.length;
+      // 流式限制：超过上限立即响应 400，并丢弃剩余请求体，避免超大 body 全量缓存进内存（内存 DoS）
+      if (received > MAX_IMAGE_SIZE) {
+        rejected = true;
+        req.removeAllListeners('data');
+        req.removeAllListeners('end');
+        req.resume(); // 继续消费请求体，让连接正常收尾（不缓存）
+        res.status(400).json({ error: 'image size exceeds 2MB limit' });
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
       try {
+        if (rejected) return;
         const buffer = Buffer.concat(chunks);
-        if (buffer.length > 2 * 1024 * 1024) {
+        // 兜底校验（正常流程已在 data 阶段拦截）
+        if (buffer.length > MAX_IMAGE_SIZE) {
           throw new AppError('image size exceeds 2MB limit', 400);
         }
 

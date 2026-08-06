@@ -89,7 +89,12 @@ async function loadPlugins() {
 
       const pluginRecord = db.queryOne('SELECT * FROM plugins WHERE id = ?', [pluginId]);
       if (pluginRecord.enabled) {
-        await enablePlugin(pluginId, pluginDef, pluginRecord);
+        const ok = await enablePlugin(pluginId, pluginDef, pluginRecord);
+        // init 失败（如 SMTP 连不上、配置非法）时回滚 enabled 标记，避免 UI 显示"运行中"但实际未加载
+        if (ok === false) {
+          db.run('UPDATE plugins SET enabled = 0 WHERE id = ?', [pluginId]);
+          console.warn(`[Plugin] ${pluginId} disabled due to init failure (enabled flag rolled back)`);
+        }
       }
     } catch (err) {
       // 加载失败：保留 DB 记录（降级为停用），绝不误删用户配置/数据

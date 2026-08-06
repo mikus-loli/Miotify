@@ -1,6 +1,6 @@
 const { WebSocketServer } = require('ws');
-const jwt = require('jsonwebtoken');
 const config = require('../config');
+const { verifyAndLoadUser } = require('../middleware/auth');
 
 const clients = new Map();
 
@@ -11,6 +11,24 @@ class WebSocketManager {
 
   attach(server) {
     this.wss = new WebSocketServer({ server, path: '/ws' });
+
+    // 心跳：30s 无 pong 判定为僵尸连接并清理（客户端切网/休眠时 TCP 不会立即断开）
+    this.heartbeatInterval = setInterval(() => {
+      for (const userClients of clients.values()) {
+        for (const ws of userClients) {
+          if (ws.isAlive === false) {
+            ws.terminate();
+            continue;
+          }
+          ws.isAlive = false;
+          ws.ping();
+        }
+      }
+    }, 30000);
+    // 不阻止进程退出（测试/优雅关闭时无残留定时器）
+    if (typeof this.heartbeatInterval.unref === 'function') {
+      this.heartbeatInterval.unref();
+    }
 
     this.wss.on('connection', (ws, req) => {
       // token 通过 Sec-WebSocket-Protocol 子协议头传递（浏览器 WebSocket 第二个参数），
@@ -25,17 +43,23 @@ class WebSocketManager {
         return;
       }
 
-      let decoded;
+      // 复用 JWT 校验：验证签名 + 用户存在 + token_version（改密码后旧 token 无法连 WS）
+      let user;
       try {
-        decoded = jwt.verify(token, config.jwtSecret);
+        user = verifyAndLoadUser(token);
       } catch (_) {
         ws.close(4002, 'Invalid token');
         return;
       }
+      if (!user) {
+        ws.close(4002, 'Invalid token');
+        return;
+      }
 
-      const userId = decoded.id;
+      const userId = user.id;
       ws.userId = userId;
-      ws.appIds = new Set();
+      ws.isAlive = true;
+      ws.on('pong', () => { ws.isAlive = true; });
 
       // 单用户连接数上限：防止持有有效 token 的客户端开大量连接耗尽内存
       const maxPerUser = config.wsMaxConnectionsPerUser;

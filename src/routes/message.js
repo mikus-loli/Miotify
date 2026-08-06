@@ -78,7 +78,7 @@ router.post('/message', appTokenMiddleware, async (req, res, next) => {
 
 router.get('/message', authMiddleware, (req, res, next) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200);
     const since = req.query.since ? parseInt(req.query.since, 10) : 0;
     const idCursor = req.query.id ? parseInt(req.query.id, 10) : 0;
     const appid = req.query.appid ? parseInt(req.query.appid, 10) : null;

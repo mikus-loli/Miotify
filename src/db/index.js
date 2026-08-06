@@ -137,13 +137,24 @@ async function loadDb() {
 
 function save() {
   if (!db) return;
-  const data = db.export();
-  const buf = Buffer.from(data);
-  const dir = path.dirname(config.dbPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    const data = db.export();
+    const buf = Buffer.from(data);
+    const dir = path.dirname(config.dbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    // 原子写：先写临时文件再 rename，避免写盘中断损坏数据库文件
+    const tmpPath = `${config.dbPath}.tmp`;
+    fs.writeFileSync(tmpPath, buf);
+    fs.renameSync(tmpPath, config.dbPath);
+  } catch (err) {
+    // 写盘失败（磁盘满/权限）不能崩进程：内存数据还在，记录错误并尝试清理临时文件
+    console.error('[DB] Save failed:', err.message);
+    try {
+      if (fs.existsSync(`${config.dbPath}.tmp`)) fs.unlinkSync(`${config.dbPath}.tmp`);
+    } catch (_) {}
   }
-  fs.writeFileSync(config.dbPath, buf);
 }
 
 // 防抖保存：避免每次写操作都全量导出数据库文件。
@@ -217,6 +228,15 @@ function migrate() {
     db.run('ALTER TABLE messages ADD COLUMN extras TEXT DEFAULT NULL');
     save();
     console.log('[DB] Migration: added extras column to messages');
+  }
+
+  // token_version：改密码后 +1，使已签发的旧 JWT 立即失效
+  const userColumns = queryAll("PRAGMA table_info(users)");
+  const userColumnNames = userColumns.map(c => c.name);
+  if (!userColumnNames.includes('token_version')) {
+    db.run('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
+    save();
+    console.log('[DB] Migration: added token_version column to users');
   }
 }
 

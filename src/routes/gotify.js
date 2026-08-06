@@ -1,10 +1,13 @@
 const express = require('express');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 const db = require('../db');
 const config = require('../config');
 const pluginManager = require('../plugins/manager');
 const wsManager = require('../websocket');
 const { AppError } = require('../middleware/error');
+const { verifyAndLoadUser } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -21,11 +24,12 @@ const gotifyLimiter = rateLimit({
     errorCode: 429,
     errorDescription: 'Too many requests, please try again later',
   },
+  // 健康检查/版本探测不消耗配额（免 token 端点，监控探活不应被限流）
+  skip: (req) => req.path === '/health' || req.path === '/version',
   // CDN 后面取真实客户端 IP（与 /api 限流一致），ipKeyGenerator 规范化 IPv6
   keyGenerator: (req) => {
-    const xff = req.headers['x-forwarded-for'];
-    const ip = xff
-      ? String(xff).split(',').map(s => s.trim()).filter(Boolean).pop()
+    const ip = config.trustProxy > 0 && req.headers['x-forwarded-for']
+      ? String(req.headers['x-forwarded-for']).split(',').map(s => s.trim()).filter(Boolean).pop()
       : req.ip;
     return ipKeyGenerator(ip || 'unknown');
   },
@@ -66,10 +70,8 @@ function gotifyTokenMiddleware(req, res, next) {
     return next();
   }
 
-  const jwt = require('jsonwebtoken');
   try {
-    const decoded = jwt.verify(token, config.jwtSecret);
-    const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE id = ?', [decoded.id]);
+    const user = verifyAndLoadUser(token);
     if (user) {
       req.user = user;
       req.tokenType = 'client';
@@ -239,9 +241,17 @@ router.get('/message', gotifyTokenMiddleware, requireClientToken, (req, res, nex
     params.push(limit);
 
     const messages = db.queryAll(sql, params);
-    const nextSince = messages.length > 0
-      ? (idCursor > 0 ? messages[messages.length - 1].id : messages[0].id)
-      : null;
+    // Gotify 官方 paging.next 是 URL 字符串（客户端直接请求下一页/增量拉取），不是数字 id
+    let next = null;
+    if (messages.length > 0) {
+      if (idCursor > 0) {
+        // 翻页模式：继续向更旧翻
+        next = `/message?limit=${limit}&id=${messages[messages.length - 1].id}`;
+      } else {
+        // 增量模式（含首屏）：用最新消息 id 作为下次 since 游标
+        next = `/message?limit=${limit}&since=${messages[0].id}`;
+      }
+    }
 
     // 触发 message:onReceive（Gotify 客户端增量拉取到消息），不阻塞响应
     for (const msg of messages) {
@@ -250,7 +260,7 @@ router.get('/message', gotifyTokenMiddleware, requireClientToken, (req, res, nex
 
     res.json({
       messages: messages.map(formatMessage),
-      paging: { next: nextSince, limit, since },
+      paging: { next, limit, since },
     });
   } catch (err) {
     console.error('[Gotify] Error fetching messages:', err.message);
@@ -409,13 +419,26 @@ router.put('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, 
 router.delete('/application/:id', gotifyTokenMiddleware, requireClientToken, (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const existing = db.queryOne('SELECT id, name FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    const existing = db.queryOne('SELECT id, name, image FROM applications WHERE id = ? AND user_id = ?', [id, req.user.id]);
     if (!existing) {
       return res.status(404).json({
         error: 'Not Found',
         errorCode: 404,
         errorDescription: 'application not found',
       });
+    }
+    // 删除应用前清理其图标文件，避免孤儿图片堆积（与 /api 版行为一致）
+    if (existing.image) {
+      const uploadDir = path.join(path.dirname(config.dbPath), 'uploads');
+      const filename = path.basename(existing.image);
+      const filepath = path.join(uploadDir, filename);
+      try {
+        if (fs.existsSync(filepath)) {
+          fs.unlinkSync(filepath);
+        }
+      } catch (err) {
+        console.warn(`[Gotify] Failed to delete image ${filename}:`, err.message);
+      }
     }
     db.run('DELETE FROM messages WHERE appid = ?', [id]);
     db.run('DELETE FROM applications WHERE id = ?', [id]);
@@ -445,17 +468,21 @@ router.get('/application/:id/messages', gotifyTokenMiddleware, requireClientToke
     let sql = 'SELECT id, appid, message, title, priority, extras, created_at FROM messages WHERE appid = ?';
     const params = [appid];
     if (since > 0) {
-      sql += ' AND id < ?';
+      // Gotify 官方语义：since 返回 id 大于 since 的消息（增量拉取）
+      sql += ' AND id > ?';
       params.push(since);
     }
     sql += ' ORDER BY id DESC LIMIT ?';
     params.push(limit);
 
     const messages = db.queryAll(sql, params);
-    const nextSince = messages.length > 0 ? messages[messages.length - 1].id : null;
+    // 官方 paging.next 为 URL 字符串，用最新消息 id 作为下次增量游标
+    const next = messages.length > 0
+      ? `/application/${appid}/messages?limit=${limit}&since=${messages[0].id}`
+      : null;
     res.json({
       messages: messages.map(formatMessage),
-      paging: { next: nextSince, limit, since },
+      paging: { next, limit, since },
     });
   } catch (err) {
     next(err);
