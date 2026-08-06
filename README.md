@@ -346,7 +346,8 @@ curl -H "Authorization: Bearer <APP_TOKEN>" ...
 plugins/
 └── available/
     ├── email-forwarder.js    # 邮件转发插件
-    └── napcat-forwarder.js   # NapCat QQ转发插件
+    ├── napcat-forwarder.js   # NapCat QQ转发插件
+    └── hermes-qq-notify.js   # Hermes webhook 推送插件（QQ 等平台）
 ```
 
 ### 插件开发
@@ -429,6 +430,23 @@ module.exports = {
 - `targetType` - 目标类型（private/group）
 - `targetId` - 目标 ID（QQ号/群号）
 - `forwardAllApps` - 是否转发所有应用
+
+#### Hermes webhook 推送插件 (hermes-qq-notify)
+
+收到消息后通过 Hermes Agent 的 webhook（`--deliver-only` 模式，零 LLM 成本）推送到
+主人/机器人绑定的聊天平台（QQ、Telegram、微信等）。适合已有 Hermes Agent 网关的用户，
+不需要额外部署 NapCat 等中转服务。
+
+配置项：
+- `webhookUrl` - Hermes webhook 地址（`hermes webhook subscribe` 创建后获得）
+- `webhookSecret` - webhook 的 HMAC secret（`hermes webhook list` 可查）
+- `minPriority` - 最低优先级（默认 0 = 全部转发）
+- `enabledApps` - 只转发指定应用 ID，空数组 = 全部
+- `maxContentLength` - 消息内容截断长度（默认 500，防聊天平台超长）
+- `retries` - 失败重试次数（指数退避，默认 2）
+
+> 也可通过环境变量 `HERMES_WEBHOOK_URL` / `HERMES_WEBHOOK_SECRET` 注入（优先于界面配置）。
+> ⚠️ `webhookSecret` 是签名密钥，请妥善保管，不要提交到公开代码库。
 
 ## Docker 部署
 
