@@ -117,15 +117,20 @@ router.get('/message', authMiddleware, (req, res, next) => {
       params.push(limit);
     }
     const messages = db.queryAll(sql, params);
-    // 增量拉取用最大 id 作为下一次游标；向后翻页用最小 id
-    const nextSince = messages.length > 0
-      ? (idCursor > 0 ? messages[messages.length - 1].id : messages[0].id)
-      : null;
+    // paging.next 统一为 URL 字符串（与 gotify 端点一致）：翻页用 id、增量用 since
+    let next = null;
+    if (messages.length > 0) {
+      if (idCursor > 0) {
+        next = `/api/message?limit=${limit}&id=${messages[messages.length - 1].id}`;
+      } else {
+        next = `/api/message?limit=${limit}&since=${messages[0].id}`;
+      }
+    }
     // 触发 message:onReceive（客户端拉取到消息），插件可在此做实时处理（不阻塞响应）
     for (const msg of messages) {
       pluginManager.executeHook('message:onReceive', msg).catch(() => {});
     }
-    res.json({ messages, paging: { next: nextSince, limit, since } });
+    res.json({ messages, paging: { next, limit, since } });
   } catch (err) {
     next(err);
   }

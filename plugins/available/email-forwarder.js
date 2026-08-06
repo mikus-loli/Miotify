@@ -67,7 +67,7 @@ module.exports = {
             <p style="margin: 0; font-size: 12px; color: #6b7280;">
               Message ID: ${message.id}<br>
               App ID: ${message.appid}<br>
-              Time: ${message.created_at}
+              Time: ${formatLocalTime(message.created_at)}
             </p>
           </div>
           <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 16px;">
@@ -76,7 +76,7 @@ module.exports = {
         </div>
       `;
 
-      const text = `[${message.title || 'New Message'}]\nPriority: ${getPriorityLabel(message.priority)}\n\n${message.message}\n\n---\nMessage ID: ${message.id}\nApp ID: ${message.appid}\nTime: ${message.created_at}`;
+      const text = `[${message.title || 'New Message'}]\nPriority: ${getPriorityLabel(message.priority)}\n\n${message.message}\n\n---\nMessage ID: ${message.id}\nApp ID: ${message.appid}\nTime: ${formatLocalTime(message.created_at)}`;
 
       try {
         const info = await transporter.sendMail({
@@ -151,4 +151,14 @@ function getPriorityLabel(priority) {
   if (priority >= 5) return `High (${priority})`;
   if (priority >= 2) return `Medium (${priority})`;
   return `Low (${priority})`;
+}
+
+// SQLite datetime('now') 存的是 UTC，转进程本地时区展示（Docker 内 TZ 生效）
+function formatLocalTime(utcStr) {
+  if (!utcStr) return '';
+  try {
+    return new Date(String(utcStr).replace(' ', 'T') + 'Z').toLocaleString('zh-CN', { hour12: false });
+  } catch {
+    return utcStr;
+  }
 }

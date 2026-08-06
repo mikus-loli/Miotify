@@ -33,13 +33,15 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     if (!name || !pass) {
       throw new AppError('请输入用户名和密码', 400);
     }
-    const user = db.queryOne('SELECT id, name, pass, admin, token_version FROM users WHERE name = ?', [name]);
+    // 用户名 trim：创建时已 trim，登录也统一 trim，避免手滑带空格导致匹配失败
+    const trimmedName = String(name).trim();
+    const user = db.queryOne('SELECT id, name, pass, admin, token_version FROM users WHERE name = ?', [trimmedName]);
     if (!user) {
       db.addLog({
         level: 'warn',
         category: 'auth',
         action: 'login_failed',
-        message: `登录失败：用户 "${name}" 不存在`,
+        message: `登录失败：用户 "${trimmedName}" 不存在`,
         ip: req.ip || req.connection.remoteAddress,
       });
       throw new AppError('用户名或密码错误', 401);
@@ -83,21 +85,30 @@ router.post('/user', authMiddleware, adminMiddleware, async (req, res, next) => 
     if (!name || !pass) {
       throw new AppError('请输入用户名和密码', 400);
     }
-    const existing = db.queryOne('SELECT id FROM users WHERE name = ?', [name]);
+    // bcrypt 只使用前 72 字节，超长密码尾部会被静默忽略（安全弱化），必须限制
+    if (pass.length > 72) {
+      throw new AppError('密码长度不能超过 72 个字符', 400);
+    }
+    // 用户名 trim，防止带空格导致登录时无法匹配
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new AppError('用户名不能为空', 400);
+    }
+    const existing = db.queryOne('SELECT id FROM users WHERE name = ?', [trimmedName]);
     if (existing) {
       throw new AppError('用户名已存在', 409);
     }
     const hash = await bcrypt.hash(pass, 10);
-    db.run('INSERT INTO users (name, pass, admin) VALUES (?, ?, ?)', [name, hash, admin ? 1 : 0]);
-    const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE name = ?', [name]);
+    db.run('INSERT INTO users (name, pass, admin) VALUES (?, ?, ?)', [trimmedName, hash, admin ? 1 : 0]);
+    const user = db.queryOne('SELECT id, name, admin, created_at FROM users WHERE name = ?', [trimmedName]);
     db.addLog({
       level: 'info',
       category: 'user',
       action: 'create',
-      message: `创建用户 "${name}"`,
+      message: `创建用户 "${trimmedName}"`,
       userId: req.user.id,
       userName: req.user.name,
-      details: { newUserId: user.id, newUser: name, admin: !!admin },
+      details: { newUserId: user.id, newUser: trimmedName, admin: !!admin },
     });
     // 触发 user:onCreate hook（不阻塞响应）
     pluginManager.executeHook('user:onCreate', { id: user.id, name: user.name, admin: !!user.admin }).catch(() => {});
@@ -180,6 +191,10 @@ router.put('/user/:id/password', authMiddleware, async (req, res, next) => {
     const { pass } = req.body;
     if (!pass) {
       throw new AppError('请输入密码', 400);
+    }
+    // bcrypt 只使用前 72 字节，超长密码尾部会被静默忽略（安全弱化），必须限制
+    if (pass.length > 72) {
+      throw new AppError('密码长度不能超过 72 个字符', 400);
     }
     const hash = await bcrypt.hash(pass, 10);
     // 密码变更后递增 token_version，使该用户已签发的旧 JWT 立即失效

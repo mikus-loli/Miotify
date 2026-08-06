@@ -106,7 +106,17 @@ function buildMessage(message, config) {
     .replace('{message}', message.message || '')
     .replace('{priority}', String(message.priority))
     .replace('{appid}', String(message.appid))
-    .replace('{time}', message.created_at || new Date().toISOString());
+    .replace('{time}', formatLocalTime(message.created_at));
+}
+
+// SQLite datetime('now') 存的是 UTC，转进程本地时区展示（Docker 内 TZ 生效）
+function formatLocalTime(utcStr) {
+  if (!utcStr) return '';
+  try {
+    return new Date(String(utcStr).replace(' ', 'T') + 'Z').toLocaleString('zh-CN', { hour12: false });
+  } catch {
+    return utcStr;
+  }
 }
 
 async function sendToNapCat(config, message, log) {

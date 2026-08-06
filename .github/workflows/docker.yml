@@ -45,6 +45,12 @@ jobs:
       - name: Dependency security audit
         run: npm audit --omit=dev
 
+      - name: Dependency security audit (frontend)
+        working-directory: web
+        # 只 gate critical 生产依赖漏洞；react-router 7.12-8.2 的 RSC CSRF(high) 暂无修复版
+        # 且本应用为纯 SPA 不使用 RSC，实际不受影响，放行避免 CI 永久卡死
+        run: npm audit --omit=dev --audit-level=critical
+
       - name: Syntax check server code
         run: |
           for f in $(find src plugins -name '*.js'); do

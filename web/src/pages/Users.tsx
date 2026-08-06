@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '@/store/users';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/api/client';
@@ -9,6 +10,8 @@ export default function UsersPage() {
   const { users, loading, fetchUsers, createUser, deleteUser } = useUserStore();
   const currentUser = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -74,6 +77,12 @@ export default function UsersPage() {
     try {
       await api.updatePassword(id, editPass, token!);
       cancelEdit();
+      if (currentUser?.id === id) {
+        // 改自己的密码：token_version 已递增，当前 token 立即失效，需重新登录
+        alert('密码已修改，请使用新密码重新登录');
+        logout();
+        navigate('/login');
+      }
     } catch (err) {
       alert((err as Error).message);
     }
@@ -113,9 +122,10 @@ export default function UsersPage() {
               <input
                 className="input"
                 type="password"
-                placeholder="请输入密码"
+                placeholder="请输入密码（最长 72 字符）"
                 value={newPass}
                 onChange={(e) => setNewPass(e.target.value)}
+                maxLength={72}
               />
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, cursor: 'pointer' }}>
@@ -209,10 +219,11 @@ export default function UsersPage() {
                       <input
                         className="input"
                         type="password"
-                        placeholder="新密码"
+                        placeholder="新密码（最长 72 字符）"
                         value={editPass}
                         onChange={(e) => setEditPass(e.target.value)}
                         style={{ width: 150 }}
+                        maxLength={72}
                       />
                       <button className="btn btn-primary btn-sm" onClick={() => handleSavePassword(user.id)} disabled={!editPass.trim()}>
                         保存
