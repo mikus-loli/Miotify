@@ -441,7 +441,8 @@ module.exports = {
 - `webhookUrl` - Hermes webhook 地址（`hermes webhook subscribe` 创建后获得）
 - `webhookSecret` - webhook 的 HMAC secret（`hermes webhook list` 可查）
 - `minPriority` - 最低优先级（默认 0 = 全部转发）
-- `enabledApps` - 只转发指定应用 ID，空数组 = 全部
+- `forwardAllApps` - 转发所有应用（默认 true；false 时只转发 `enabledApps` 列出的）
+- `enabledApps` - 只转发指定应用 ID（`forwardAllApps=false` 时生效，空数组 = 全部）
 - `maxContentLength` - 消息内容截断长度（默认 500，防聊天平台超长）
 - `retries` - 失败重试次数（指数退避，默认 2）
 
