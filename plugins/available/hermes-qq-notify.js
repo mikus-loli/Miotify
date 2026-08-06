@@ -12,7 +12,8 @@ const https = require('https');
  *   webhookUrl     Hermes webhook 地址，如 http://64.90.11.66:8644/webhooks/miotify-alerts
  *   webhookSecret  webhook 的 HMAC secret（hermes webhook list 可查）
  *   minPriority    最低优先级（0 = 全部转发）
- *   enabledApps    只转发这些应用 ID，空数组 = 全部
+ *   forwardAllApps 转发所有应用（true=全部；false=只转发 enabledApps 列出的）
+ *   enabledApps    只转发这些应用 ID（forwardAllApps=false 时生效，空数组 = 全部）
  *   maxContentLength 消息内容截断长度（QQ 消息长度有限）
  *   retries        失败重试次数（指数退避：1s/2s/4s...）
  *
@@ -34,6 +35,7 @@ module.exports = {
     webhookUrl: '',
     webhookSecret: '',
     minPriority: 0,
+    forwardAllApps: true,
     enabledApps: [],
     maxContentLength: 500,
     retries: 2,
@@ -57,10 +59,13 @@ module.exports = {
         return;
       }
 
-      // 应用过滤（空数组 = 全部）
-      const enabledAppIds = (config.enabledApps || []).map(Number);
-      if (enabledAppIds.length > 0 && !enabledAppIds.includes(Number(message.appid))) {
-        return;
+      // 应用过滤：forwardAllApps=true 转发所有；false 时只转发 enabledApps 列出的（空数组 = 全部）
+      if (!config.forwardAllApps) {
+        const enabledAppIds = (config.enabledApps || []).map(Number);
+        if (enabledAppIds.length > 0 && !enabledAppIds.includes(Number(message.appid))) {
+          log('info', `跳过应用 ${message.appid}（不在 enabledApps）`);
+          return;
+        }
       }
 
       // 查应用名（payload 更友好）
