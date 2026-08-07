@@ -9,7 +9,7 @@ const WebSocket = require('ws');
  *   Miotify → QQ 官方 Bot API → 主人 QQ
  *
  * 被动消息免额度：
- *   - 插件启动时通过 WebSocket 订阅 QQ 事件（C2C_MSG_RECEIVE），记录主人最近一条消息的 msg_id
+ *   - 插件启动时通过 WebSocket 订阅 QQ 事件（C2C_MESSAGE_CREATE），记录主人最近一条消息的 msg_id
  *   - 发送时带上 msg_id → 视为"回复"（被动消息）→ 不受主动消息额度限制（11255）
  *   - 用户 48h 内与机器人有过互动时生效；超时退化为主动消息（额度内）
  *
