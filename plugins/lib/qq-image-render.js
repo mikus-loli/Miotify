@@ -42,6 +42,28 @@ function esc(s) {
     .replace(/'/g, '&apos;');
 }
 
+// 应用图标转可加载的 src：
+// - http(s):// URL 直接用
+// - 本地文件路径（/xxx 或相对路径）→ 读文件转 base64 data URL
+//   （HTML 是 setContent 渲染的，绝对文件路径会被当成 URL 路径导致加载失败）
+function resolveAppImage(appImage) {
+  if (!appImage) return '';
+  const str = String(appImage).trim();
+  if (!str) return '';
+  // 远程 URL 直接可用
+  if (/^https?:\/\//i.test(str)) return str;
+  // 本地文件路径 → base64 data URL
+  try {
+    if (fs.existsSync(str)) {
+      const buf = fs.readFileSync(str);
+      const ext = path.extname(str).toLowerCase().replace('.', '') || 'png';
+      const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', ico: 'image/x-icon' }[ext] || 'image/png';
+      return `data:${mime};base64,${buf.toString('base64')}`;
+    }
+  } catch { /* 文件读取失败则忽略 */ }
+  return '';
+}
+
 // 构建卡片 HTML（macOS 磨砂玻璃风格，CSS 自适应高度，Chromium 截图）
 function buildCardHtml({ appName, title, content, priority, time, appImage }) {
   const theme = APP_THEMES[String(appName)] || APP_THEMES[String(appName || '').toLowerCase()] || APP_THEMES.default;
@@ -373,7 +395,8 @@ async function renderToFile(message, outFile) {
     content: message.message != null ? message.message : message.content,
     priority: message.priority,
     time: message.time || message.created_at || '',
-    appImage: message.appImage || '',
+    // 本地路径转 base64 data URL（setContent 渲染下文件路径无法直接加载）
+    appImage: resolveAppImage(message.appImage || ''),
   });
   const png = await renderPng(html);
   fs.writeFileSync(outFile, png);
