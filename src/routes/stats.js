@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { tzModifier } = require('../timezone');
 
 const router = express.Router();
 
@@ -9,12 +10,9 @@ router.get('/stats', authMiddleware, (req, res) => {
     const userId = req.user.id;
     const isAdmin = req.user.admin;
 
-    // 时区修正：SQLite datetime('now') 恒为 UTC，按进程本地时区（TZ 环境变量）生成修饰符，
-    // 让"今日/近7天/24小时分布"统计按本地时间口径展示（中国用户 +8 小时）。
-    const tzOffsetMin = new Date().getTimezoneOffset(); // UTC - local（分钟），中国 = -480
-    const tzModifier = tzOffsetMin === 0
-      ? '+0 hours'
-      : (tzOffsetMin < 0 ? `+${-tzOffsetMin / 60} hours` : `-${tzOffsetMin / 60} hours`);
+    // 时区修正：SQLite datetime('now') 恒为 UTC，按默认中国时区（config.timezone）生成修饰符，
+    // 让"今日/近7天/24小时分布"统计按中国时间口径展示（+8 小时），不依赖容器 TZ。
+    const modifier = tzModifier();
 
     const appIds = db.queryAll('SELECT id FROM applications WHERE user_id = ?', [userId]).map(a => a.id);
     const totalApps = appIds.length;
@@ -37,7 +35,7 @@ router.get('/stats', authMiddleware, (req, res) => {
       const placeholders = appIds.map(() => '?').join(',');
       todayMessages = db.queryOne(
         `SELECT COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND date(created_at, ?) = date('now', ?)`,
-        [...appIds, tzModifier, tzModifier]
+        [...appIds, modifier, modifier]
       ).cnt;
     }
 
@@ -67,7 +65,7 @@ router.get('/stats', authMiddleware, (req, res) => {
         `SELECT date(created_at, ?) as day, COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) AND date(created_at, ?) >= date('now', ?, ?) GROUP BY date(created_at, ?) ORDER BY day`,
         // 注意参数顺序：SELECT 子句里的 ? 最先占位，然后才是 IN 的 appIds
         // 参数 = SELECT date(1) + IN(n) + WHERE date(1) + date('now')(2) + GROUP BY(1)
-        [tzModifier, ...appIds, tzModifier, tzModifier, '-6 days', tzModifier]
+        [modifier, ...appIds, modifier, modifier, '-6 days', modifier]
       );
       for (const row of rows) {
         dayResults.set(row.day, row.cnt);
@@ -76,7 +74,7 @@ router.get('/stats', authMiddleware, (req, res) => {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      // 用本地时区拼 YYYY-MM-DD（与 SQL 的 date(created_at, tzModifier) 口径一致），
+      // 用本地时区拼 YYYY-MM-DD（与 SQL 的 date(created_at, modifier) 口径一致），
       // 不能用 toISOString()——那是 UTC 日期，跨天时段（如本地凌晨）会与 SQL 结果错位
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       messagesByDay.push({
@@ -107,7 +105,7 @@ router.get('/stats', authMiddleware, (req, res) => {
       const rows = db.queryAll(
         `SELECT CAST(strftime('%H', created_at, ?) AS INTEGER) as hour, COUNT(*) as cnt FROM messages WHERE appid IN (${placeholders}) GROUP BY hour ORDER BY hour`,
         // strftime 的修饰符 ? 在 SELECT 子句，先于 IN 的 appIds 占位
-        [tzModifier, ...appIds]
+        [modifier, ...appIds]
       );
       const hourMap = new Map();
       for (const row of rows) {

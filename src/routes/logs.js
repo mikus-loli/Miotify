@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { tzModifier } = require('../timezone');
 
 const router = express.Router();
 
@@ -48,11 +49,10 @@ router.get('/logs/stats', authMiddleware, adminMiddleware, (req, res) => {
     const categoryStats = db.queryAll(
       "SELECT category, COUNT(*) as cnt FROM logs GROUP BY category ORDER BY cnt DESC LIMIT 10"
     );
-    const tzOffsetMin = new Date().getTimezoneOffset();
-    const tzModifier = tzOffsetMin === 0 ? '+0 hours' : (tzOffsetMin < 0 ? `+${-tzOffsetMin / 60} hours` : `-${tzOffsetMin / 60} hours`);
+    const modifier = tzModifier(); // 默认中国时区（+8），不依赖容器 TZ
     const recentCount = db.queryOne(
       `SELECT COUNT(*) as cnt FROM logs WHERE date(created_at, ?) >= date('now', ?, ?)`,
-      [tzModifier, tzModifier, '-1 day']
+      [modifier, modifier, '-1 day']
     ).cnt;
 
     res.json({
