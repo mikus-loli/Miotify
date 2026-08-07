@@ -478,7 +478,7 @@ function handleGatewayMessage(msg, appId, clientSecret, log) {
       if (msgId && userOpenid) {
         lastMsgIdByUser.set(userOpenid, msgId);
         saveMsgIds(); // 持久化，重启恢复
-        log('info', `QQ C2C 事件已记录 msg_id（openid ${userOpenid.slice(0, 8)}...）`);
+        log('info', `QQ C2C 事件已记录 msg_id（openid ${userOpenid}）`);
       }
     }
     // 首次 READY 后启动心跳，并清除建连超时（连接已就绪）
