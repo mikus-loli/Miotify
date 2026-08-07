@@ -43,7 +43,7 @@ function esc(s) {
 }
 
 // 构建卡片 HTML（macOS 磨砂玻璃风格，CSS 自适应高度，Chromium 截图）
-function buildCardHtml({ appName, title, content, priority, time }) {
+function buildCardHtml({ appName, title, content, priority, time, appImage }) {
   const theme = APP_THEMES[String(appName)] || APP_THEMES[String(appName || '').toLowerCase()] || APP_THEMES.default;
 
   // 优先级徽章（macOS 风格：柔和色底 + 深色文字）
@@ -161,6 +161,14 @@ function buildCardHtml({ appName, title, content, priority, time }) {
       inset 0 -2px 6px rgba(0,0,0,0.15);
     flex-shrink: 0;
     text-shadow: 0 2px 6px rgba(0,0,0,0.20);
+    overflow: hidden;
+  }
+  /* 应用自定义图标图片 */
+  .app-icon img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 19px;
   }
   .app-name {
     font-size: 22px;
@@ -287,7 +295,7 @@ function buildCardHtml({ appName, title, content, priority, time }) {
     <div class="glow glow-2"></div>
     <div class="glow glow-3"></div>
     <div class="header">
-      <div class="app-icon">${theme.icon}</div>
+      <div class="app-icon">${appImage ? `<img src="${esc(appImage)}" alt=""/>` : theme.icon}</div>
       <div class="app-name">${esc(appName || 'Miotify')}</div>
       <div class="badge">${pri.label}</div>
     </div>
@@ -330,11 +338,24 @@ async function getBrowser() {
 
 async function renderPng(html, options = {}) {
   const browser = await getBrowser();
-  const page = await browser.newPage({ viewport: { width: 1020, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1040, height: 800 } });
   try {
     await page.setContent(html, { waitUntil: 'load' });
     // 等待字体加载（避免截到缺字）
     await page.evaluate(() => document.fonts.ready);
+    // 等待所有图片加载完成（应用图标可能来自本地文件或远程 URL）
+    await page.evaluate(() => {
+      const imgs = Array.from(document.images);
+      return Promise.all(imgs.map((img) => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+          // 兜底：3s 超时（图片加载失败或超时都不能让渲染卡死）
+          setTimeout(resolve, 3000);
+        });
+      }));
+    });
     // 用元素原生截图（自动精确裁剪 .card，按内容高度自适应）
     const el = await page.$('.card');
     return await el.screenshot({ omitBackground: true });
@@ -352,6 +373,7 @@ async function renderToFile(message, outFile) {
     content: message.message != null ? message.message : message.content,
     priority: message.priority,
     time: message.time || message.created_at || '',
+    appImage: message.appImage || '',
   });
   const png = await renderPng(html);
   fs.writeFileSync(outFile, png);
