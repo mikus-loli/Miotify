@@ -113,7 +113,8 @@ function buildMessage(message, config) {
 function formatLocalTime(utcStr) {
   if (!utcStr) return '';
   try {
-    return new Date(String(utcStr).replace(' ', 'T') + 'Z').toLocaleString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' });
+    // 默认中国时区，可用 MIOTIFY_TZ 环境变量覆盖（如 MIOTIFY_TZ=UTC）
+    return new Date(String(utcStr).replace(' ', 'T') + 'Z').toLocaleString('zh-CN', { hour12: false, timeZone: process.env.MIOTIFY_TZ || 'Asia/Shanghai' });
   } catch {
     return utcStr;
   }
