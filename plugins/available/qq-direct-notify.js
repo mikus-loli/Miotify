@@ -216,12 +216,13 @@ function sendC2CText(token, openid, content, log) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           return resolve(raw);
         }
-        let message = raw.slice(0, 200);
+        // 完整错误响应（含 code/trace_id）便于排查：如 openid 无效返回 500 invalid request
+        let detail = raw.slice(0, 300);
         try {
           const data = JSON.parse(raw);
-          message = data.message || `code=${data.code}`;
+          detail = `${data.message || ''} (code=${data.code || '?'}, err_code=${data.err_code || '?'}, trace_id=${data.trace_id || '?'})`;
         } catch { /* 保留原始文本 */ }
-        reject(new Error(`QQ API ${res.statusCode}: ${message}`));
+        reject(new Error(`QQ API ${res.statusCode}: ${detail}`));
       });
     });
     req.on('error', reject);
