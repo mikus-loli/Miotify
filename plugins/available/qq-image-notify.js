@@ -34,7 +34,8 @@ const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
 
-const renderer = require('./lib/qq-image-render');
+// ⚠️ 相对路径：插件在 plugins/available/ 下，lib 在 plugins/lib/ 下，必须用 ../lib/
+const renderer = require('../lib/qq-image-render');
 
 module.exports = {
   meta: {
