@@ -347,7 +347,8 @@ plugins/
 └── available/
     ├── email-forwarder.js    # 邮件转发插件
     ├── napcat-forwarder.js   # NapCat QQ转发插件
-    └── hermes-qq-notify.js   # Hermes webhook 推送插件（QQ 等平台）
+    ├── hermes-qq-notify.js   # Hermes webhook 推送插件（QQ 等平台）
+    └── qq-direct-notify.js   # QQ 官方 Bot API 直连推送插件
 ```
 
 ### 插件开发
@@ -448,6 +449,26 @@ module.exports = {
 
 > 也可通过环境变量 `HERMES_WEBHOOK_URL` / `HERMES_WEBHOOK_SECRET` 注入（优先于界面配置）。
 > ⚠️ `webhookSecret` 是签名密钥，请妥善保管，不要提交到公开代码库。
+
+#### QQ 官方 Bot API 直连插件 (qq-direct-notify)
+
+收到消息后直接调用 QQ 开放平台机器人 API（C2C 消息）推送到主人 QQ。
+不依赖任何中间服务（无需 NapCat、Hermes、webhook、反代）：
+`Miotify → QQ 官方 Bot API → 主人 QQ`。
+
+配置项：
+- `appId` - QQ 开放平台机器人的 AppID
+- `clientSecret` - QQ 开放平台机器人的 ClientSecret
+- `targetOpenId` - 接收消息的用户 openid（C2C 单聊，可在机器人消息事件中获取）
+- `minPriority` - 最低优先级（默认 0 = 全部转发）
+- `forwardAllApps` - 转发所有应用（默认 true；false 时只转发 `enabledApps` 列出的）
+- `enabledApps` - 只转发指定应用 ID（`forwardAllApps=false` 时生效，空数组 = 全部）
+- `maxContentLength` - 消息内容截断长度（默认 4000，QQ 文本消息上限）
+- `retries` - 失败重试次数（指数退避，默认 2）
+
+> 也可通过环境变量 `QQ_APP_ID` / `QQ_CLIENT_SECRET` / `QQ_TARGET_OPENID` 注入（优先于界面配置）。
+> ⚠️ `clientSecret` 是机器人密钥，请妥善保管，不要提交到公开代码库。
+> 💡 access_token 自动缓存刷新（提前 60s），token 失效自动重试。
 
 ## Docker 部署
 
