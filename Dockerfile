@@ -2,6 +2,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# 强制使用官方 npm registry（node 镜像默认 npmmirror 偶发 503，拖垮构建）
+ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+
 COPY package*.json ./
 RUN npm ci --only=production
 
@@ -28,6 +31,8 @@ RUN apk add --no-cache tini su-exec tzdata \
 
 ENV TZ=Asia/Shanghai
 ENV QQ_CARD_CHROMIUM=/usr/bin/chromium
+# 强制使用官方 npm registry（node 镜像默认 npmmirror 偶发 503，拖垮构建）
+ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 
 COPY package*.json ./
 RUN npm ci --only=production
