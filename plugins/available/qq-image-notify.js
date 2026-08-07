@@ -88,14 +88,24 @@ module.exports = {
         }
       }
 
-      // 查应用名（渲染卡片用）
+      // 查应用信息（名称 + 图标，渲染卡片用）
       let appName = '';
+      let appImage = '';
       try {
         const db = require('../../src/db');
-        const app = db.queryOne('SELECT name FROM applications WHERE id = ?', [message.appid]);
+        const app = db.queryOne('SELECT name, image FROM applications WHERE id = ?', [message.appid]);
         appName = app ? app.name : '';
+        appImage = app && app.image ? app.image : '';
+        // /uploads/xxx 相对路径 → 容器内绝对路径（Docker 挂载 /app/data）
+        if (appImage && appImage.startsWith('/uploads/')) {
+          const base = process.env.DB_PATH ? require('path').dirname(process.env.DB_PATH) : '/app/data';
+          appImage = require('path').join(base, appImage.replace(/^\/uploads\//, 'uploads/'));
+          if (!require('fs').existsSync(appImage)) {
+            appImage = '';
+          }
+        }
       } catch (err) {
-        log('warn', `查询应用名失败: ${err.message}`);
+        log('warn', `查询应用信息失败: ${err.message}`);
       }
 
       // 组装渲染数据（内容截断防超长）
@@ -111,6 +121,7 @@ module.exports = {
         message: truncatedContent,
         priority: message.priority || 0,
         created_at: message.created_at,
+        appImage,
       };
 
       const ok = await sendImageWithRetry(appId, clientSecret, targetOpenId, renderInput, config, log);
