@@ -4,6 +4,8 @@ let _jwtSecret = process.env.JWT_SECRET || null;
 
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 8080,
+  // 默认中国时区（UTC+8），不依赖容器 TZ；用 MIOTIFY_TZ 显式覆盖
+  timezone: process.env.MIOTIFY_TZ || 'Asia/Shanghai',
   get jwtSecret() {
     return _jwtSecret;
   },

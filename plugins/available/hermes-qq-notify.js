@@ -122,7 +122,7 @@ module.exports = {
 function formatLocalTime(utcStr) {
   if (!utcStr) return '';
   try {
-    return new Date(String(utcStr).replace(' ', 'T') + 'Z').toLocaleString('zh-CN', { hour12: false });
+    return new Date(String(utcStr).replace(' ', 'T') + 'Z').toLocaleString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' });
   } catch {
     return utcStr;
   }
