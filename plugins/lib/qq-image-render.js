@@ -6,8 +6,9 @@ const { chromium } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
 
+// Chromium 路径：默认容器内 /usr/bin/chromium（Dockerfile 已安装），可用 QQ_CARD_CHROMIUM 覆盖
 const CHROMIUM_PATH = process.env.QQ_CARD_CHROMIUM
-  || '/root/.agent-browser/browsers/chrome-151.0.7922.34/chrome';
+  || '/usr/bin/chromium';
 
 // 应用主题色（按应用名匹配，取不到用默认）
 // 每个主题：主渐变（深→亮）+ 强调色 + 图标 + 光晕色

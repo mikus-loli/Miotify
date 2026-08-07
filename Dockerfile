@@ -15,9 +15,19 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache tini su-exec tzdata
+# Chromium（qq-image-notify 渲染卡片用）+ 中文字体 + 运行依赖
+RUN apk add --no-cache tini su-exec tzdata \
+    chromium \
+    font-noto-cjk \
+    font-noto-emoji \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
 
 ENV TZ=Asia/Shanghai
+ENV QQ_CARD_CHROMIUM=/usr/bin/chromium
 
 COPY package*.json ./
 RUN npm ci --only=production
