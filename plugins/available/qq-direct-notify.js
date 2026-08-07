@@ -125,6 +125,8 @@ module.exports = {
       return;
     }
     log('info', 'QQ Direct Notify 就绪');
+    // 恢复持久化的 msg_id（重启不丢被动通道）
+    loadMsgIds();
     // 启动事件监听（记录主人最近 msg_id，发送时走被动消息免额度）
     startListener(appId, clientSecret, log);
   },
@@ -282,6 +284,14 @@ async function sendWithRetry(appId, clientSecret, openid, content, retries, log)
         attempt = -1; // 重试循环重新从 0 开始（只允许一次刷新）
         continue;
       }
+      // 被动消息失败（msg_id 过期/无效）→ 清除并降级主动消息重试一次
+      const hadMsgId = getLastMsgId(openid);
+      if (hadMsgId && /11255|invalid|forbidden/i.test(msg)) {
+        log('warn', `被动消息失败（msg_id 可能过期），降级主动消息重试: ${msg}`);
+        lastMsgIdByUser.delete(openid);
+        saveMsgIds();
+        continue;
+      }
       log('error', `QQ 发送失败（第 ${attempt + 1} 次尝试）: ${msg}`);
       if (attempt < (retries || 0)) {
         await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
@@ -297,6 +307,7 @@ async function sendWithRetry(appId, clientSecret, openid, content, retries, log)
 // ---------------------------------------------------------------------------
 
 const lastMsgIdByUser = new Map(); // openid → 最近一条消息的 msg_id
+const MSGID_STORE_FILE = 'data/qq-direct-msgids.json'; // 持久化（重启恢复）
 let ws = null;
 let heartbeatTimer = null;
 let reconnectTimer = null;
@@ -305,6 +316,33 @@ let heartbeatIntervalMs = 45000;
 let stopRequested = false;
 let reconnectAttempts = 0;
 let connectTimeoutId = null; // 建连阶段超时（收到 READY 后清除）
+
+// 启动时从磁盘恢复 msg_id（重启不丢，48h 被动窗口内依然有效）
+function loadMsgIds() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const file = path.resolve(MSGID_STORE_FILE);
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (data && typeof data === 'object') {
+        for (const [k, v] of Object.entries(data)) {
+          if (v) lastMsgIdByUser.set(k, v);
+        }
+      }
+    }
+  } catch { /* 忽略加载失败 */ }
+}
+
+function saveMsgIds() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const file = path.resolve(MSGID_STORE_FILE);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(Object.fromEntries(lastMsgIdByUser)), 'utf8');
+  } catch { /* 忽略保存失败 */ }
+}
 
 function getLastMsgId(openid) {
   return lastMsgIdByUser.get(openid) || null;
@@ -439,6 +477,7 @@ function handleGatewayMessage(msg, appId, clientSecret, log) {
       const userOpenid = msg.d.author && msg.d.author.user_openid;
       if (msgId && userOpenid) {
         lastMsgIdByUser.set(userOpenid, msgId);
+        saveMsgIds(); // 持久化，重启恢复
         log('info', `QQ C2C 事件已记录 msg_id（openid ${userOpenid.slice(0, 8)}...）`);
       }
     }
